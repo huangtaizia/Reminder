@@ -79,6 +79,7 @@ export function ReminderEditor({
   const [displayMin, setDisplayMin] = React.useState(1);
   const [fixedHour, setFixedHour] = React.useState(11);
   const [fixedMinute, setFixedMinute] = React.useState(30);
+  const DEFAULT_MESSAGE = 'Thông điệp nhắc nhở'
 
   React.useEffect(() => {
     if (!initial) return;
@@ -203,7 +204,7 @@ export function ReminderEditor({
           onClick={async () => {
             await window.reminder.previewPopup({
               icon, color,
-              message: message.trim() || 'Nhắc nhở',
+              message: message.trim() || DEFAULT_MESSAGE,
               displayMs: Math.max(1, Math.min(24 * 60, displayMin)) * 60_000,
             });
           }}
@@ -224,7 +225,7 @@ export function ReminderEditor({
               schedule,
               config: {
                 icon, color,
-                message: message.trim() || 'Nhắc nhở',
+                message: message.trim() || DEFAULT_MESSAGE,
                 displayMs: Math.max(1, Math.min(24 * 60, displayMin)) * 60_000,
               },
             };
