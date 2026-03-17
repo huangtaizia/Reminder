@@ -1,0 +1,438 @@
+<!doctype html>
+
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+
+*{
+box-sizing:border-box;
+margin:0;
+padding:0;
+}
+
+:root{
+
+--accent:#3aa8ff;
+
+/* nền dim */
+
+--overlay:rgba(0,0,0,.45);
+
+/* card solid */
+
+--card:#111827;
+
+--stroke:rgba(255,255,255,.08);
+
+--text:#eef3ff;
+
+--muted:rgba(238,243,255,.6);
+
+}
+
+html,body{
+height:100%;
+width:100%;
+}
+
+body{
+
+display:flex;
+align-items:center;
+justify-content:center;
+
+font-family:
+"Segoe UI Variable",
+"Segoe UI",
+system-ui,
+-apple-system,
+BlinkMacSystemFont,
+sans-serif;
+
+color:var(--text);
+
+background:transparent;
+
+-webkit-font-smoothing:antialiased;
+
+}
+
+/* DIM LAYER */
+
+.dimLayer{
+
+position:fixed;
+inset:0;
+
+display:flex;
+align-items:center;
+justify-content:center;
+
+background:var(--overlay);
+
+backdrop-filter:blur(4px);
+
+}
+
+/* CARD */
+
+.card{
+
+position:relative;
+
+width:640px;
+
+border-radius:14px;
+
+padding:42px 38px 32px;
+
+display:flex;
+flex-direction:column;
+align-items:center;
+
+gap:18px;
+
+/* solid background */
+
+background:var(--card);
+
+border:1px solid var(--stroke);
+
+/* shadow giống dialog OS */
+
+box-shadow:
+
+0 25px 70px rgba(0,0,0,.55),
+0 6px 18px rgba(0,0,0,.45);
+
+animation:pop .3s ease;
+
+}
+
+/* CLOSE */
+
+.close{
+
+position:absolute;
+
+top:12px;
+right:12px;
+
+width:28px;
+height:28px;
+
+border-radius:8px;
+
+display:flex;
+align-items:center;
+justify-content:center;
+
+font-size:14px;
+
+color:rgba(255,255,255,.65);
+
+cursor:pointer;
+
+transition:.15s;
+
+}
+
+.close:hover{
+
+background:rgba(255,255,255,.08);
+
+color:white;
+
+}
+
+/* ICON */
+
+.iconWrap{
+
+position:relative;
+
+width:90px;
+height:90px;
+
+border-radius:16px;
+
+display:flex;
+align-items:center;
+justify-content:center;
+
+background:#0f172a;
+
+border:1px solid rgba(255,255,255,.06);
+
+}
+
+/* GLOW */
+
+.iconGlow{
+
+position:absolute;
+inset:-24px;
+
+border-radius:24px;
+
+background:radial-gradient(circle,var(--accent),transparent 70%);
+
+filter:blur(10px);
+
+opacity:.25;
+
+animation:breath 2.5s ease-in-out infinite;
+
+}
+
+.icon{
+
+font-size:42px;
+
+filter:
+
+drop-shadow(0 0 8px var(--accent))
+drop-shadow(0 0 18px var(--accent));
+
+}
+
+/* MESSAGE */
+
+.msg{
+
+text-align:center;
+
+font-size:28px;
+font-weight:600;
+
+letter-spacing:-.01em;
+
+line-height:1.35;
+
+min-height:70px;
+
+display:flex;
+flex-direction:column;
+justify-content:center;
+
+}
+
+.line{
+
+white-space:nowrap;
+overflow:hidden;
+text-overflow:ellipsis;
+
+}
+
+/* CLOCK */
+
+.time{
+
+font-size:15px;
+
+color:var(--muted);
+
+}
+
+/* PROGRESS */
+
+.progress{
+
+width:100%;
+height:8px;
+
+border-radius:999px;
+
+background:rgba(255,255,255,.08);
+
+overflow:hidden;
+
+}
+
+.bar{
+
+height:100%;
+width:100%;
+
+border-radius:999px;
+
+background:
+
+linear-gradient(
+90deg,
+var(--accent),
+#6dc7ff
+);
+
+}
+
+/* HINT */
+
+.hint{
+
+font-size:12px;
+
+color:rgba(255,255,255,.35);
+
+}
+
+/* ANIMATIONS */
+
+@keyframes breath{
+
+0%{transform:scale(.9);opacity:.15}
+
+50%{transform:scale(1.15);opacity:.45}
+
+100%{transform:scale(.9);opacity:.15}
+
+}
+
+@keyframes pop{
+
+0%{
+opacity:0;
+transform:scale(.92) translateY(8px);
+}
+
+100%{
+opacity:1;
+transform:scale(1);
+}
+
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="dimLayer">
+
+<div class="card">
+
+<div class="close" id="closeBtn">✕</div>
+
+<div class="iconWrap">
+
+<div class="iconGlow"></div>
+
+<div class="icon" id="icon">⏰</div>
+
+</div>
+
+<div class="msg" id="msg"></div>
+
+<div class="time" id="clock"></div>
+
+<div class="progress">
+<div class="bar" id="bar"></div>
+</div>
+
+<div class="hint">Nhấn Esc hoặc click X để đóng</div>
+
+</div>
+
+</div>
+
+<script>
+
+const params = new URLSearchParams(location.search)
+
+const CFG = JSON.parse(
+decodeURIComponent(params.get("cfg") || "{}")
+)
+
+CFG.displayMs = CFG.displayMs || 60000
+CFG.startAt = CFG.startAt || Date.now()
+
+document.documentElement.style.setProperty(
+"--accent",
+CFG.color || "#3aa8ff"
+)
+
+document.getElementById("icon").innerText =
+CFG.icon || "⏰"
+
+const msg = document.getElementById("msg")
+
+if(CFG.line2){
+
+msg.innerHTML =
+'<div class="line">'+CFG.line1+'</div>'+
+'<div class="line">'+CFG.line2+'</div>'
+
+}else{
+
+msg.innerHTML =
+'<div class="line">'+CFG.line1+'</div>'
+
+}
+
+function closePopup(){
+
+window.close()
+
+}
+
+document.getElementById("closeBtn").onclick =
+closePopup
+
+window.addEventListener("keydown",e=>{
+
+if(e.key==="Escape") closePopup()
+
+})
+
+const clock = document.getElementById("clock")
+
+function fmt(){
+
+const d = new Date()
+
+return String(d.getHours()).padStart(2,'0')
++':'+
+String(d.getMinutes()).padStart(2,'0')
+
+}
+
+const bar = document.getElementById("bar")
+
+function tick(){
+
+const now = Date.now()
+
+const elapsed = now - CFG.startAt
+
+const remain = CFG.displayMs - elapsed
+
+const pct = Math.max(0,Math.min(1,remain/CFG.displayMs))
+
+bar.style.width = (pct*100)+"%"
+
+clock.textContent = fmt()
+
+if(remain<=0){
+
+closePopup()
+return
+
+}
+
+requestAnimationFrame(tick)
+
+}
+
+clock.textContent = fmt()
+
+requestAnimationFrame(tick)
+
+</script>
+
+</body>
+</html>
