@@ -1,0 +1,362 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --accent: #3aa8ff;
+  --accent-rgb: 58, 168, 255;
+  --bar-duration: 60s;
+  --bar-delay: 0s;
+}
+
+html, body { height: 100%; width: 100%; overflow: hidden; }
+
+body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "DM Sans", "Segoe UI Variable", system-ui, -apple-system, sans-serif;
+  color: #f0f4ff;
+  background: transparent;
+  -webkit-font-smoothing: antialiased;
+}
+
+/*
+  .root bọc cả dim + card.
+  Dùng opacity trên wrapper → dim và card đồng bộ tuyệt đối, cùng 1 animation tick.
+  delay 16ms = 1 frame warmup GPU trước khi bắt đầu.
+*/
+.root {
+  position: fixed; inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  animation: fadeIn 220ms 16ms cubic-bezier(.25, 1, .4, 1) forwards;
+  will-change: opacity;
+}
+
+/* dim = pseudo-element, không thêm DOM node */
+.root::before {
+  content: '';
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.55);
+  pointer-events: none;
+}
+
+/* ── CARD ──
+   Scale riêng, cùng duration + delay với .root → hoàn toàn đồng bộ.
+   transform-origin: center center (default) → phóng từ tâm màn hình ra.
+   680px card, padding ngang 16px → message width = 680 - 32 = 648px
+   → đủ hiển thị "Đứng dậy vận động chút nào!" (≈ 580px @ 24px)
+*/
+.card {
+  position: relative;
+  width: 680px;
+  border-radius: 24px;
+  padding: 40px 34px 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 22px;
+  overflow: visible;
+
+  background:
+    radial-gradient(ellipse 80% 60% at 50% -10%, rgba(var(--accent-rgb),.09) 0%, transparent 65%),
+    linear-gradient(175deg, #16202f 0%, #0e1622 30%, #0a1119 65%, #070d14 100%);
+
+  border: 1px solid rgba(255,255,255,.09);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.07) inset,
+    0 -1px 0 rgba(0,0,0,.4) inset,
+    0 4px 12px rgba(0,0,0,.40),
+    0 16px 48px rgba(0,0,0,.60),
+    0 48px 100px rgba(0,0,0,.70),
+    0 0 160px -20px rgba(var(--accent-rgb),.22);
+
+  transform: scale(.80);
+  animation: scaleIn 220ms 16ms cubic-bezier(.25, 1, .4, 1) forwards;
+  will-change: transform;
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 8%; right: 8%; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.18) 35%, rgba(255,255,255,.18) 65%, transparent);
+  border-radius: 999px; pointer-events: none;
+}
+.card::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 15%; right: 15%; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(0,0,0,.5) 40%, rgba(0,0,0,.5) 60%, transparent);
+  border-radius: 999px; pointer-events: none;
+}
+
+/* CLOSE */
+.close {
+  position: absolute; top: 14px; right: 14px;
+  width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 600;
+  color: rgba(255,255,255,.45); cursor: pointer;
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.10);
+}
+.close:active { transform: scale(.93); }
+
+/* ── ICON ── */
+.iconSection {
+  position: relative; width: 136px; height: 136px;
+  display: flex; align-items: center; justify-content: center;
+}
+.blob { position: absolute; border-radius: 50%; pointer-events: none; will-change: transform; }
+.blob1 {
+  inset: -44px;
+  background: radial-gradient(circle, rgba(var(--accent-rgb),.20) 0%, rgba(var(--accent-rgb),.06) 45%, transparent 70%);
+  filter: blur(14px);
+  animation: breathOuter 3s ease-in-out infinite;
+}
+.blob2 {
+  inset: -22px;
+  background: radial-gradient(circle, rgba(var(--accent-rgb),.34) 0%, rgba(var(--accent-rgb),.10) 50%, transparent 72%);
+  filter: blur(8px);
+  animation: breathMid 3s ease-in-out infinite .2s;
+}
+.blob3 {
+  inset: 0;
+  background: radial-gradient(circle, rgba(var(--accent-rgb),.52) 0%, rgba(var(--accent-rgb),.18) 45%, transparent 70%);
+  filter: blur(5px);
+  animation: breathInner 3s ease-in-out infinite .4s;
+}
+.iconWrap {
+  position: relative; width: 88px; height: 88px; border-radius: 22px;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(145deg, rgba(var(--accent-rgb),.14), rgba(var(--accent-rgb),.04));
+  border: 1px solid rgba(var(--accent-rgb),.20);
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.05) inset,
+    0 4px 20px rgba(0,0,0,.45),
+    0 0 30px -8px rgba(var(--accent-rgb),.30);
+  z-index: 1;
+}
+.icon { font-size: 42px; filter: drop-shadow(0 0 8px rgba(var(--accent-rgb),.65)); }
+
+/* MESSAGE */
+.msg {
+  text-align: center;
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -.02em;
+  line-height: 1.38;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  color: var(--accent);
+  text-shadow: 0 0 24px rgba(var(--accent-rgb),.35), 0 0 6px rgba(var(--accent-rgb),.15);
+  white-space: nowrap;
+}
+.line {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* DIVIDER */
+.divider {
+  width: 100%; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.07) 25%, rgba(255,255,255,.07) 75%, transparent);
+}
+
+/* TIME ROW */
+.timeRow { display: flex; align-items: center; justify-content: space-between; width: 100%; }
+.time {
+  font-family: "DM Mono","SF Mono",monospace;
+  font-size: 14px; font-weight: 500;
+  color: rgba(200,215,255,.50); letter-spacing: .05em;
+  display: flex; align-items: center; gap: 7px;
+}
+.time::before {
+  content: ''; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--accent); box-shadow: 0 0 7px rgba(var(--accent-rgb),.9);
+  animation: blink 1.8s ease-in-out infinite; flex-shrink: 0;
+}
+.countdown {
+  font-family: "DM Mono","SF Mono",monospace;
+  font-size: 15px; font-weight: 600;
+  color: rgba(var(--accent-rgb),.82); letter-spacing: .04em;
+  min-width: 44px; text-align: right;
+}
+.countdown.urgent { color: #ff6060; animation: urgentPulse .55s ease-in-out infinite; }
+
+/* ── PROGRESS ── */
+.progressWrap { width: 100%; }
+.progress {
+  width: 100%; height: 7px; border-radius: 999px;
+  background: rgba(255,255,255,.07);
+  position: relative;
+  clip-path: inset(0 0 0 0 round 999px);
+}
+.bar {
+  position: absolute; top: 0; left: 0;
+  width: 100%; height: 100%; border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent) 0%, rgba(var(--accent-rgb),.60) 100%);
+  box-shadow: 0 0 10px rgba(var(--accent-rgb),.50);
+  transform-origin: left center;
+  animation: barShrink var(--bar-duration) var(--bar-delay) linear forwards;
+  will-change: transform;
+}
+.barShimmer {
+  position: absolute; inset: 0; border-radius: 999px;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,.20) 50%, transparent 100%);
+  background-size: 60% 100%; background-repeat: no-repeat;
+  animation: shimmer 2.4s linear infinite;
+  pointer-events: none;
+}
+
+/* HINT */
+.hint { font-size: 12px; color: rgba(200,215,255,.22); letter-spacing: .01em; }
+
+/* ── KEYFRAMES ── */
+@keyframes fadeIn {
+  to { opacity: 1; }
+}
+@keyframes scaleIn {
+  to { transform: scale(1); }
+}
+@keyframes barShrink {
+  from { transform: scaleX(1); }
+  to   { transform: scaleX(0); }
+}
+@keyframes breathOuter {
+  0%,100% { transform: scale(.82); opacity: .50; }
+  50%     { transform: scale(1.20); opacity: 1;  }
+}
+@keyframes breathMid {
+  0%,100% { transform: scale(.85); opacity: .55; }
+  50%     { transform: scale(1.16); opacity: 1;  }
+}
+@keyframes breathInner {
+  0%,100% { transform: scale(.90); opacity: .62; }
+  50%     { transform: scale(1.12); opacity: 1;  }
+}
+@keyframes blink {
+  0%,100% { opacity: 1; }
+  50%     { opacity: .22; }
+}
+@keyframes shimmer {
+  0%   { background-position: -80% 0; }
+  100% { background-position: 180% 0; }
+}
+@keyframes urgentPulse {
+  0%,100% { opacity: 1; }
+  50%     { opacity: .35; }
+}
+</style>
+</head>
+
+<body>
+  <div class="root">
+    <div class="card">
+      <div class="close" id="closeBtn">✕</div>
+
+      <div class="iconSection">
+        <div class="blob blob1"></div>
+        <div class="blob blob2"></div>
+        <div class="blob blob3"></div>
+        <div class="iconWrap">
+          <div class="icon" id="icon">⏰</div>
+        </div>
+      </div>
+
+      <div class="msg" id="msg"></div>
+      <div class="divider"></div>
+
+      <div class="timeRow">
+        <div class="time" id="clock"></div>
+        <div class="countdown" id="countdownNum">--:--</div>
+      </div>
+
+      <div class="progressWrap">
+        <div class="progress">
+          <div class="bar" id="bar">
+            <div class="barShimmer"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hint">Nhấn Esc hoặc click ✕ để đóng</div>
+    </div>
+  </div>
+
+<script>
+const params = new URLSearchParams(location.search)
+const CFG = JSON.parse(decodeURIComponent(params.get("cfg") || "{}"))
+CFG.displayMs = CFG.displayMs || 60000
+CFG.startAt   = CFG.startAt   || Date.now()
+
+const accentHex = (CFG.color || "#3aa8ff").replace("#","")
+document.documentElement.style.setProperty("--accent", CFG.color || "#3aa8ff")
+const r = parseInt(accentHex.slice(0,2),16)
+const g = parseInt(accentHex.slice(2,4),16)
+const b = parseInt(accentHex.slice(4,6),16)
+document.documentElement.style.setProperty("--accent-rgb", `${r},${g},${b}`)
+
+document.getElementById("icon").innerText = CFG.icon || "⏰"
+
+const msg = document.getElementById("msg")
+if (CFG.line2) {
+  msg.innerHTML = '<div class="line">'+CFG.line1+'</div><div class="line">'+CFG.line2+'</div>'
+} else {
+  msg.innerHTML = '<div class="line">'+CFG.line1+'</div>'
+}
+
+function closePopup() { window.close() }
+document.getElementById("closeBtn").onclick = closePopup
+window.addEventListener("keydown", e => { if (e.key==="Escape") closePopup() })
+
+const clockEl     = document.getElementById("clock")
+const countdownEl = document.getElementById("countdownNum")
+
+function fmtClock() {
+  const d = new Date()
+  return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')
+}
+function fmtCountdown(ms) {
+  if (ms <= 0) return "00:00"
+  const s = Math.ceil(ms / 1000)
+  return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')
+}
+
+const elapsed = Date.now() - CFG.startAt
+const remain  = CFG.displayMs - elapsed
+
+if (remain <= 0) {
+  closePopup()
+} else {
+  document.documentElement.style.setProperty("--bar-duration", (CFG.displayMs/1000).toFixed(3)+"s")
+  document.documentElement.style.setProperty("--bar-delay",    "-"+(elapsed/1000).toFixed(3)+"s")
+}
+
+clockEl.textContent     = fmtClock()
+countdownEl.textContent = fmtCountdown(remain)
+
+const timer = setInterval(() => {
+  const r = CFG.displayMs - (Date.now() - CFG.startAt)
+  if (r <= 0) { clearInterval(timer); closePopup(); return }
+  countdownEl.textContent = fmtCountdown(r)
+  clockEl.textContent     = fmtClock()
+  if (r <= 10000) countdownEl.classList.add("urgent")
+  else            countdownEl.classList.remove("urgent")
+}, 1000)
+</script>
+</body>
+</html>

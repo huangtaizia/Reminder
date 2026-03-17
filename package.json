@@ -1,0 +1,64 @@
+{
+  "name": "reminder",
+  "version": "1.0.2",
+  "description": "Reminder for windows",
+  "main": "dist-electron/electron/main.js",
+  "scripts": {
+    "dev": "concurrently -k \"tsc -p tsconfig.electron.json -w\" \"vite\" \"wait-on dist-electron/electron/main.js && electron .\"",
+    "build": "if exist dist-electron rmdir /s /q dist-electron && if exist dist rmdir /s /q dist && npx tsc -p tsconfig.electron.json && vite build && electron-builder --win portable",
+    "preview": "vite preview",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "node-global-key-listener": "^0.3.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.5",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.2.0",
+    "concurrently": "^9.2.1",
+    "electron": "^40.8.0",
+    "electron-builder": "^26.8.1",
+    "electronmon": "^2.0.4",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.1",
+    "vite-plugin-static-copy": "^3.3.0",
+    "wait-on": "^9.0.4"
+  },
+  "build": {
+    "extraResources": [
+      {
+        "from": "public/tray.png",
+        "to": "tray.png"
+      },
+      {
+        "from": "public/popup.html",
+        "to": "popup.html"
+      }
+    ],
+    "appId": "com.hhv.reminder",
+    "productName": "Reminder",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**",
+      "dist-electron/**",
+      "package.json"
+    ],
+    "asar": true,
+    "win": {
+      "target": [
+        "portable"
+      ],
+      "icon": "build/icons/win/icon.ico"
+    }
+  }
+}
