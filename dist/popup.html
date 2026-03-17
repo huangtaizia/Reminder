@@ -1,438 +1,418 @@
 <!doctype html>
-
 <html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
 
 <style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
 
-*{
-box-sizing:border-box;
-margin:0;
-padding:0;
+:root {
+  --accent: #3aa8ff;
+  --accent-rgb: 58, 168, 255;
+  --bar-duration: 60s;
+  --bar-delay: 0s;
+  --card-w: 520px;
+  /* set by JS based on accent color */
+  --card-top: #1a1e2e;
+  --card-mid: #13151c;
 }
 
-:root{
+html, body { height: 100%; width: 100%; overflow: hidden; }
 
---accent:#3aa8ff;
-
-/* nền dim */
-
---overlay:rgba(0,0,0,.45);
-
-/* card solid */
-
---card:#111827;
-
---stroke:rgba(255,255,255,.08);
-
---text:#eef3ff;
-
---muted:rgba(238,243,255,.6);
-
+body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "DM Sans", "Segoe UI Variable", system-ui, -apple-system, sans-serif;
+  color: #e8eeff;
+  background: transparent;
+  -webkit-font-smoothing: antialiased;
 }
 
-html,body{
-height:100%;
-width:100%;
+/* Dim */
+.root {
+  position: fixed; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0;
+  animation: fadeIn 200ms 16ms ease-out forwards;
+  will-change: opacity;
+}
+.root::before {
+  content: ''; position: fixed; inset: 0;
+  background: rgba(0,0,0,.60);
+  pointer-events: none;
 }
 
-body{
+/* ── CARD ──
+   UX rationale:
+   - Width 480px: đủ đọc message, không quá rộng tạo cảm giác trống
+   - Padding 32px đều: breathing room cân đối 4 phía
+   - gap 16px: elements gần nhau hơn → đọc như 1 khối thống nhất
+   - border-radius 20px: friendly, không quá bo tròn
+*/
+.card {
+  position: relative;
+  width: var(--card-w);
+  border-radius: 20px;
+  padding: 32px 32px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  isolation: isolate;
 
-display:flex;
-align-items:center;
-justify-content:center;
+  /*
+    Gradient theo màu reminder:
+    - JS tính --card-top từ accent pha tối (opacity ~12%)
+    - Hướng 145deg: góc trên trái sáng accent nhẹ → góc dưới phải pure dark
+    - Cảm giác card "thuộc về" màu reminder, không bị loè loẹt
+  */
+  background-image:
+    linear-gradient(145deg,
+      var(--card-top) 0%,
+      var(--card-mid) 45%,
+      #0c0d12 100%
+    );
 
-font-family:
-"Segoe UI Variable",
-"Segoe UI",
-system-ui,
--apple-system,
-BlinkMacSystemFont,
-sans-serif;
+  border: 1px solid rgba(255,255,255,.09);
 
-color:var(--text);
+  box-shadow:
+    /* inner top highlight — glass edge */
+    0 1px 0 rgba(255,255,255,.08) inset,
+    /* close shadow */
+    0 2px 8px rgba(0,0,0,.40),
+    /* mid elevation */
+    0 12px 40px rgba(0,0,0,.60),
+    /* deep shadow */
+    0 40px 90px rgba(0,0,0,.70),
+    /* accent ambient glow */
+    0 0 100px -20px rgba(var(--accent-rgb),.18);
 
-background:transparent;
-
--webkit-font-smoothing:antialiased;
-
+  transform: scale(.86);
+  animation: cardIn 200ms 16ms cubic-bezier(.34, 1.3, .64, 1) forwards;
+  will-change: transform;
 }
 
-/* DIM LAYER */
-
-.dimLayer{
-
-position:fixed;
-inset:0;
-
-display:flex;
-align-items:center;
-justify-content:center;
-
-background:var(--overlay);
-
-backdrop-filter:blur(4px);
-
+/* Subtle top glow line */
+.card::before {
+  content: '';
+  position: absolute; top: 0; left: 12%; right: 12%; height: 1px;
+  background: linear-gradient(90deg,
+    transparent,
+    rgba(var(--accent-rgb),.25) 40%,
+    rgba(var(--accent-rgb),.25) 60%,
+    transparent
+  );
+  border-radius: 999px;
 }
 
-/* CARD */
+/* CLOSE — top right, nhỏ gọn */
+.close {
+  position: absolute; top: 12px; right: 12px;
+  width: 24px; height: 24px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700;
+  color: rgba(255,255,255,.30); cursor: pointer;
+  transition: color .15s, background .15s;
+}
+.close:hover { color: rgba(255,255,255,.70); background: rgba(255,255,255,.08); }
+.close:active { transform: scale(.90); }
 
-.card{
-
-position:relative;
-
-width:640px;
-
-border-radius:14px;
-
-padding:42px 38px 32px;
-
-display:flex;
-flex-direction:column;
-align-items:center;
-
-gap:18px;
-
-/* solid background */
-
-background:var(--card);
-
-border:1px solid var(--stroke);
-
-/* shadow giống dialog OS */
-
-box-shadow:
-
-0 25px 70px rgba(0,0,0,.55),
-0 6px 18px rgba(0,0,0,.45);
-
-animation:pop .3s ease;
-
+/* ── ICON ──
+   UX: icon nhỏ hơn, không chiếm quá nhiều không gian
+   blob chỉ 1 lớp mờ → ambient glow không gây nhiễu
+*/
+.iconSection {
+  position: relative;
+  width: 96px; height: 96px;
+  display: flex; align-items: center; justify-content: center;
+  margin-top: 0;
+}
+.blob { position: absolute; border-radius: 50%; pointer-events: none; will-change: transform; }
+.blob1 {
+  inset: -28px;
+  background: radial-gradient(circle, rgba(var(--accent-rgb),.20) 0%, rgba(var(--accent-rgb),.06) 45%, transparent 70%);
+  filter: blur(14px);
+  animation: breathOuter 3s ease-in-out infinite;
+}
+.blob2 {
+  inset: -14px;
+  background: radial-gradient(circle, rgba(var(--accent-rgb),.34) 0%, rgba(var(--accent-rgb),.10) 50%, transparent 72%);
+  filter: blur(8px);
+  animation: breathMid 3s ease-in-out infinite .2s;
+}
+.blob3 {
+  inset: 0;
+  background: radial-gradient(circle, rgba(var(--accent-rgb),.52) 0%, rgba(var(--accent-rgb),.18) 45%, transparent 70%);
+  filter: blur(5px);
+  animation: breathInner 3s ease-in-out infinite .4s;
+}
+.iconWrap {
+  position: relative;
+  width: 64px; height: 64px; border-radius: 16px;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(145deg, rgba(var(--accent-rgb),.14), rgba(var(--accent-rgb),.04));
+  border: 1px solid rgba(var(--accent-rgb),.20);
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.05) inset,
+    0 4px 20px rgba(0,0,0,.45),
+    0 0 20px -10px rgba(var(--accent-rgb),.20);
+  z-index: 1;
+}
+.icon {
+  font-size: 30px;
+  filter: drop-shadow(0 2px 6px rgba(var(--accent-rgb),.45));
 }
 
-/* CLOSE */
-
-.close{
-
-position:absolute;
-
-top:12px;
-right:12px;
-
-width:28px;
-height:28px;
-
-border-radius:8px;
-
-display:flex;
-align-items:center;
-justify-content:center;
-
-font-size:14px;
-
-color:rgba(255,255,255,.65);
-
-cursor:pointer;
-
-transition:.15s;
-
+/* ── MESSAGE ──
+   UX: đây là focal point — to nhất, sáng nhất, căn giữa
+   Không white-space:nowrap → wrap tự nhiên nếu message dài
+   max 2 dòng trông đẹp nhất
+*/
+.msg {
+  text-align: center;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -.025em;
+  line-height: 1.35;
+  width: 100%;
+  color: var(--accent);
+}
+.line {
+  white-space: normal;
+  word-break: break-word;
 }
 
-.close:hover{
-
-background:rgba(255,255,255,.08);
-
-color:white;
-
+.divider {
+  width: 75%;
+  height: 1px;
+  /* mở dần từ giữa ra 2 đầu bằng mask */
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255,255,255,.12) 30%,
+    rgba(255,255,255,.12) 70%,
+    transparent 100%
+  );
+  /* animation mở dần từ giữa */
+  animation: dividerOpen .5s .22s ease-out both;
+  transform-origin: center;
 }
 
-/* ICON */
-
-.iconWrap{
-
-position:relative;
-
-width:90px;
-height:90px;
-
-border-radius:16px;
-
-display:flex;
-align-items:center;
-justify-content:center;
-
-background:#0f172a;
-
-border:1px solid rgba(255,255,255,.06);
-
+/* ── FOOTER: time + progress gộp thành 1 khối ──
+   UX: không dùng divider cứng nhắc
+   time + countdown cùng hàng với progress bên dưới → đọc liền mạch
+*/
+.footer {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
-/* GLOW */
-
-.iconGlow{
-
-position:absolute;
-inset:-24px;
-
-border-radius:24px;
-
-background:radial-gradient(circle,var(--accent),transparent 70%);
-
-filter:blur(10px);
-
-opacity:.25;
-
-animation:breath 2.5s ease-in-out infinite;
-
+.timeRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
-.icon{
-
-font-size:42px;
-
-filter:
-
-drop-shadow(0 0 8px var(--accent))
-drop-shadow(0 0 18px var(--accent));
-
+.time {
+  font-family: "DM Mono", monospace;
+  font-size: 12px; font-weight: 500;
+  color: rgba(200,215,255,.40);
+  letter-spacing: .06em;
+  display: flex; align-items: center; gap: 6px;
+}
+/* Live dot */
+.time::before {
+  content: '';
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--accent);
+  opacity: .8;
+  animation: blink 2s ease-in-out infinite;
+  flex-shrink: 0;
 }
 
-/* MESSAGE */
-
-.msg{
-
-text-align:center;
-
-font-size:28px;
-font-weight:600;
-
-letter-spacing:-.01em;
-
-line-height:1.35;
-
-min-height:70px;
-
-display:flex;
-flex-direction:column;
-justify-content:center;
-
+.countdown {
+  font-family: "DM Mono", monospace;
+  font-size: 12px; font-weight: 500;
+  color: rgba(var(--accent-rgb),.55);
+  letter-spacing: .05em;
 }
+.countdown.urgent { color: #ff6060; animation: urgentPulse .6s ease-in-out infinite; }
 
-.line{
-
-white-space:nowrap;
-overflow:hidden;
-text-overflow:ellipsis;
-
+.progressBar {
+  width: 100%; height: 5px; border-radius: 999px;
+  background: rgba(255,255,255,.08);
+  position: relative;
+  overflow: hidden;
 }
-
-/* CLOCK */
-
-.time{
-
-font-size:15px;
-
-color:var(--muted);
-
-}
-
-/* PROGRESS */
-
-.progress{
-
-width:100%;
-height:8px;
-
-border-radius:999px;
-
-background:rgba(255,255,255,.08);
-
-overflow:hidden;
-
-}
-
-.bar{
-
-height:100%;
-width:100%;
-
-border-radius:999px;
-
-background:
-
-linear-gradient(
-90deg,
-var(--accent),
-#6dc7ff
-);
-
+.bar {
+  position: absolute; top: 0; left: 0;
+  height: 100%; border-radius: 999px;
+  background: linear-gradient(90deg,
+    rgba(var(--accent-rgb),.90) 0%,
+    rgba(var(--accent-rgb),.45) 100%
+  );
+  animation: barShrink var(--bar-duration) var(--bar-delay) linear forwards;
+  will-change: width;
 }
 
 /* HINT */
-
-.hint{
-
-font-size:12px;
-
-color:rgba(255,255,255,.35);
-
+.hint {
+  font-size: 11px;
+  color: rgba(200,215,255,.18);
+  letter-spacing: .02em;
+  text-align: center;
+  margin-top: -4px;
 }
 
-/* ANIMATIONS */
+/* ── KEYFRAMES ── */
+@keyframes fadeIn { to { opacity: 1; } }
 
-@keyframes breath{
-
-0%{transform:scale(.9);opacity:.15}
-
-50%{transform:scale(1.15);opacity:.45}
-
-100%{transform:scale(.9);opacity:.15}
-
+@keyframes cardIn {
+  from { opacity: 0; transform: scale(.86); }
+  to   { opacity: 1; transform: scale(1);   }
 }
 
-@keyframes pop{
-
-0%{
-opacity:0;
-transform:scale(.92) translateY(8px);
+@keyframes barShrink {
+  from { width: 100%; }
+  to   { width: 0%; }
 }
 
-100%{
-opacity:1;
-transform:scale(1);
+@keyframes dividerOpen {
+  from { clip-path: inset(0 50% 0 50%); }
+  to   { clip-path: inset(0 0% 0 0%); }
+}
+@keyframes breathOuter {
+  0%,100% { transform: scale(.82); opacity: .50; }
+  50%     { transform: scale(1.20); opacity: 1;  }
+}
+@keyframes breathMid {
+  0%,100% { transform: scale(.85); opacity: .55; }
+  50%     { transform: scale(1.16); opacity: 1;  }
+}
+@keyframes breathInner {
+  0%,100% { transform: scale(.90); opacity: .62; }
+  50%     { transform: scale(1.12); opacity: 1;  }
 }
 
+@keyframes blink {
+  0%,100% { opacity: .8; }
+  50%     { opacity: .25; }
 }
 
+@keyframes urgentPulse {
+  0%,100% { opacity: 1; }
+  50%     { opacity: .3; }
+}
 </style>
-
 </head>
 
 <body>
+<div class="root">
+  <div class="card">
+    <div class="close" id="closeBtn">✕</div>
 
-<div class="dimLayer">
+    <div class="iconSection">
+      <div class="blob blob1"></div>
+      <div class="blob blob2"></div>
+      <div class="blob blob3"></div>
+      <div class="iconWrap">
+        <div class="icon" id="icon">⏰</div>
+      </div>
+    </div>
 
-<div class="card">
+    <div class="msg" id="msg"></div>
 
-<div class="close" id="closeBtn">✕</div>
+    <div class="divider"></div>
 
-<div class="iconWrap">
+    <div class="footer">
+      <div class="timeRow">
+        <div class="time" id="clock"></div>
+        <div class="countdown" id="countdownNum">--:--</div>
+      </div>
+      <div class="progressBar">
+        <div class="bar" id="bar"></div>
+      </div>
+    </div>
 
-<div class="iconGlow"></div>
-
-<div class="icon" id="icon">⏰</div>
-
-</div>
-
-<div class="msg" id="msg"></div>
-
-<div class="time" id="clock"></div>
-
-<div class="progress">
-<div class="bar" id="bar"></div>
-</div>
-
-<div class="hint">Nhấn Esc hoặc click X để đóng</div>
-
-</div>
-
+    <div class="hint">Esc hoặc ✕ để đóng</div>
+  </div>
 </div>
 
 <script>
-
 const params = new URLSearchParams(location.search)
-
-const CFG = JSON.parse(
-decodeURIComponent(params.get("cfg") || "{}")
-)
-
+const CFG = JSON.parse(decodeURIComponent(params.get("cfg") || "{}"))
 CFG.displayMs = CFG.displayMs || 60000
-CFG.startAt = CFG.startAt || Date.now()
+CFG.startAt   = CFG.startAt   || Date.now()
 
-document.documentElement.style.setProperty(
-"--accent",
-CFG.color || "#3aa8ff"
-)
+const accentHex = (CFG.color || "#3aa8ff").replace("#","")
+document.documentElement.style.setProperty("--accent", CFG.color || "#3aa8ff")
+const r = parseInt(accentHex.slice(0,2),16)
+const g = parseInt(accentHex.slice(2,4),16)
+const b = parseInt(accentHex.slice(4,6),16)
+document.documentElement.style.setProperty("--accent-rgb", `${r},${g},${b}`)
 
-document.getElementById("icon").innerText =
-CFG.icon || "⏰"
+// Tính gradient card từ accent:
+// Blend accent vào base dark (#0d0e14) với opacity thấp
+// card-top: accent 13% + dark base → góc sáng nhẹ
+// card-mid: accent 6%  + dark base → chuyển tiếp mượt
+const blend = (c, base, ratio) => Math.round(c * ratio + base * (1 - ratio))
+const topR = blend(r, 13, .13), topG = blend(g, 14, .13), topB = blend(b, 20, .13)
+const midR = blend(r, 11, .07), midG = blend(g, 12, .07), midB = blend(b, 17, .07)
+const toHex = n => n.toString(16).padStart(2,'0')
+document.documentElement.style.setProperty("--card-top", `#${toHex(topR)}${toHex(topG)}${toHex(topB)}`)
+document.documentElement.style.setProperty("--card-mid", `#${toHex(midR)}${toHex(midG)}${toHex(midB)}`)
+
+document.getElementById("icon").innerText = CFG.icon || "⏰"
 
 const msg = document.getElementById("msg")
-
-if(CFG.line2){
-
-msg.innerHTML =
-'<div class="line">'+CFG.line1+'</div>'+
-'<div class="line">'+CFG.line2+'</div>'
-
-}else{
-
-msg.innerHTML =
-'<div class="line">'+CFG.line1+'</div>'
-
+if (CFG.line2) {
+  msg.innerHTML = '<div class="line">'+(CFG.line1 || 'Thông điệp nhắc nhở')+'</div><div class="line">'+CFG.line2+'</div>'
+} else {
+  msg.innerHTML = '<div class="line">'+(CFG.line1 || 'Thông điệp nhắc nhở')+'</div>'
 }
 
-function closePopup(){
+function closePopup() { window.close() }
+document.getElementById("closeBtn").onclick = closePopup
+window.addEventListener("keydown", e => { if (e.key==="Escape") closePopup() })
 
-window.close()
+const clockEl     = document.getElementById("clock")
+const countdownEl = document.getElementById("countdownNum")
 
+function fmtClock() {
+  const d = new Date()
+  return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')
+}
+function fmtCountdown(ms) {
+  if (ms <= 0) return "00:00"
+  const s = Math.ceil(ms / 1000)
+  return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')
 }
 
-document.getElementById("closeBtn").onclick =
-closePopup
+requestAnimationFrame(() => {
+  const elapsed = Date.now() - CFG.startAt
+  const remain  = CFG.displayMs - elapsed
+  if (remain <= 0) { closePopup(); return }
 
-window.addEventListener("keydown",e=>{
+  document.documentElement.style.setProperty("--bar-duration", (CFG.displayMs/1000).toFixed(4)+"s")
+  document.documentElement.style.setProperty("--bar-delay",    "-"+(elapsed/1000).toFixed(4)+"s")
 
-if(e.key==="Escape") closePopup()
+  clockEl.textContent     = fmtClock()
+  countdownEl.textContent = fmtCountdown(remain)
 
+  const timer = setInterval(() => {
+    const r = CFG.displayMs - (Date.now() - CFG.startAt)
+    if (r <= 0) { clearInterval(timer); closePopup(); return }
+    countdownEl.textContent = fmtCountdown(r)
+    clockEl.textContent     = fmtClock()
+    if (r <= 10000) countdownEl.classList.add("urgent")
+    else            countdownEl.classList.remove("urgent")
+  }, 1000)
 })
-
-const clock = document.getElementById("clock")
-
-function fmt(){
-
-const d = new Date()
-
-return String(d.getHours()).padStart(2,'0')
-+':'+
-String(d.getMinutes()).padStart(2,'0')
-
-}
-
-const bar = document.getElementById("bar")
-
-function tick(){
-
-const now = Date.now()
-
-const elapsed = now - CFG.startAt
-
-const remain = CFG.displayMs - elapsed
-
-const pct = Math.max(0,Math.min(1,remain/CFG.displayMs))
-
-bar.style.width = (pct*100)+"%"
-
-clock.textContent = fmt()
-
-if(remain<=0){
-
-closePopup()
-return
-
-}
-
-requestAnimationFrame(tick)
-
-}
-
-clock.textContent = fmt()
-
-requestAnimationFrame(tick)
-
 </script>
-
 </body>
 </html>
