@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Tray, Menu, nativeImage, globalShortcut } from 'electron';
+import { app, BrowserWindow, Tray, Menu, nativeImage, globalShortcut, ipcMain } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
 import { registerIpc } from './ipc';
@@ -195,6 +195,9 @@ app.whenReady().then(() => {
 
   createMainWindow();
   createTray();
+  ipcMain.handle('quit-app', () => {
+    app.quit();
+  });
 
   scheduler.rescheduleAll(state.reminders, state.settings.masterEnabled);
 

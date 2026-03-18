@@ -32,7 +32,13 @@ export function ReminderList({
   return (
     <div>
       {items.map((r) => (
-        <div className="card" key={r.id}>
+        <div
+          className="card"
+          key={r.id}
+          onClick={() => onEdit?.(r)}
+          style={{ cursor: 'pointer' }}
+          title="Nhấn để chỉnh sửa"
+        >
           <div className="remItem">
             <div className="remLeft">
               <div className="remIcon" style={{ background: 'rgba(255,255,255,0.06)' }}>
@@ -48,7 +54,9 @@ export function ReminderList({
                 </div>
               </div>
             </div>
-            <div className="remActions">
+
+            {/* stopPropagation trên remActions để click button không trigger onEdit card */}
+            <div className="remActions" onClick={(e) => e.stopPropagation()}>
               <button className="iconBtn" title="Sửa" onClick={() => onEdit?.(r)}>
                 ✎
               </button>
@@ -95,4 +103,3 @@ export function ReminderList({
     </div>
   );
 }
-

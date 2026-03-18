@@ -11,4 +11,5 @@ electron_1.contextBridge.exposeInMainWorld('reminder', {
     previewPopup: async (cfg) => electron_1.ipcRenderer.invoke('popup:preview', cfg),
     minimizeWindow: async () => electron_1.ipcRenderer.invoke('window:minimize'),
     closeWindow: async () => electron_1.ipcRenderer.invoke('window:close'),
+    quitApp: async () => electron_1.ipcRenderer.invoke('quit-app'),
 });

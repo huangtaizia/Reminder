@@ -13,8 +13,7 @@
   --accent-rgb: 58, 168, 255;
   --bar-duration: 60s;
   --bar-delay: 0s;
-  --card-w: 520px;
-  /* set by JS based on accent color */
+  --card-w: 600px;
   --card-top: #1a1e2e;
   --card-mid: #13151c;
 }
@@ -41,74 +40,70 @@ body {
 }
 .root::before {
   content: ''; position: fixed; inset: 0;
-  background: rgba(0,0,0,.60);
+  background: rgba(0,0,0,.72);
   pointer-events: none;
 }
 
-/* ── CARD ──
-   UX rationale:
-   - Width 480px: đủ đọc message, không quá rộng tạo cảm giác trống
-   - Padding 32px đều: breathing room cân đối 4 phía
-   - gap 16px: elements gần nhau hơn → đọc như 1 khối thống nhất
-   - border-radius 20px: friendly, không quá bo tròn
-*/
+/* ── CARD ── */
 .card {
   position: relative;
   width: var(--card-w);
-  border-radius: 20px;
-  padding: 32px 32px 20px;
+  border-radius: 22px;
+  padding: 36px 40px 24px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 20px;
+  gap: 24px;
   isolation: isolate;
 
-  /*
-    Gradient theo màu reminder:
-    - JS tính --card-top từ accent pha tối (opacity ~12%)
-    - Hướng 145deg: góc trên trái sáng accent nhẹ → góc dưới phải pure dark
-    - Cảm giác card "thuộc về" màu reminder, không bị loè loẹt
-  */
   background-image:
-    linear-gradient(145deg,
+    linear-gradient(180deg,
       var(--card-top) 0%,
       var(--card-mid) 45%,
-      #0c0d12 100%
+      #111318 100%
     );
 
-  border: 1px solid rgba(255,255,255,.09);
+  /*
+    Viền 2 lớp để nổi bật trên nền dim:
+    - Lớp ngoài: rgba(.22) — đủ sáng để thấy rõ cạnh card
+    - Lớp trong (inset): rgba(.08) highlight trắng mỏng — glass effect
+    Không dùng màu đặc tránh trông cứng
+  */
+  border: 1px solid rgba(255,255,255,.22);
 
   box-shadow:
     /* inner top highlight — glass edge */
-    0 1px 0 rgba(255,255,255,.08) inset,
-    /* close shadow */
-    0 2px 8px rgba(0,0,0,.40),
+    0 1px 0 rgba(255,255,255,.10) inset,
+    /* inner bottom depth */
+    0 -1px 0 rgba(0,0,0,.30) inset,
+    /* sát card — soft lift */
+    0 2px 8px rgba(0,0,0,.45),
     /* mid elevation */
-    0 12px 40px rgba(0,0,0,.60),
-    /* deep shadow */
-    0 40px 90px rgba(0,0,0,.70),
-    /* accent ambient glow */
-    0 0 100px -20px rgba(var(--accent-rgb),.18);
+    0 12px 40px rgba(0,0,0,.65),
+    /* deep shadow — tách card khỏi nền */
+    0 40px 90px rgba(0,0,0,.75),
+    /* accent ambient — halo màu nhẹ */
+    0 0 100px -16px rgba(var(--accent-rgb),.28);
 
   transform: scale(.86);
   animation: cardIn 200ms 16ms cubic-bezier(.34, 1.3, .64, 1) forwards;
   will-change: transform;
 }
 
-/* Subtle top glow line */
+/* Top accent glow line — sáng hơn để thấy rõ cạnh trên */
 .card::before {
   content: '';
-  position: absolute; top: 0; left: 12%; right: 12%; height: 1px;
+  position: absolute; top: 0; left: 10%; right: 10%; height: 1px;
   background: linear-gradient(90deg,
     transparent,
-    rgba(var(--accent-rgb),.25) 40%,
-    rgba(var(--accent-rgb),.25) 60%,
+    rgba(var(--accent-rgb),.45) 35%,
+    rgba(var(--accent-rgb),.45) 65%,
     transparent
   );
   border-radius: 999px;
 }
 
-/* CLOSE — top right, nhỏ gọn */
+/* CLOSE */
 .close {
   position: absolute; top: 12px; right: 12px;
   width: 24px; height: 24px; border-radius: 50%;
@@ -120,25 +115,22 @@ body {
 .close:hover { color: rgba(255,255,255,.70); background: rgba(255,255,255,.08); }
 .close:active { transform: scale(.90); }
 
-/* ── ICON ──
-   UX: icon nhỏ hơn, không chiếm quá nhiều không gian
-   blob chỉ 1 lớp mờ → ambient glow không gây nhiễu
-*/
+/* ── ICON ── */
 .iconSection {
   position: relative;
-  width: 96px; height: 96px;
+  width: 110px; height: 110px;
   display: flex; align-items: center; justify-content: center;
   margin-top: 0;
 }
 .blob { position: absolute; border-radius: 50%; pointer-events: none; will-change: transform; }
 .blob1 {
-  inset: -28px;
+  inset: -32px;
   background: radial-gradient(circle, rgba(var(--accent-rgb),.20) 0%, rgba(var(--accent-rgb),.06) 45%, transparent 70%);
   filter: blur(14px);
   animation: breathOuter 3s ease-in-out infinite;
 }
 .blob2 {
-  inset: -14px;
+  inset: -16px;
   background: radial-gradient(circle, rgba(var(--accent-rgb),.34) 0%, rgba(var(--accent-rgb),.10) 50%, transparent 72%);
   filter: blur(8px);
   animation: breathMid 3s ease-in-out infinite .2s;
@@ -151,9 +143,9 @@ body {
 }
 .iconWrap {
   position: relative;
-  width: 64px; height: 64px; border-radius: 16px;
+  width: 74px; height: 74px; border-radius: 18px;
   display: flex; align-items: center; justify-content: center;
-  background: linear-gradient(145deg, rgba(var(--accent-rgb),.14), rgba(var(--accent-rgb),.04));
+  background: linear-gradient(180deg, rgba(var(--accent-rgb),.14), rgba(var(--accent-rgb),.04));
   border: 1px solid rgba(var(--accent-rgb),.20);
   box-shadow:
     0 0 0 1px rgba(255,255,255,.05) inset,
@@ -162,18 +154,14 @@ body {
   z-index: 1;
 }
 .icon {
-  font-size: 30px;
+  font-size: 34px;
   filter: drop-shadow(0 2px 6px rgba(var(--accent-rgb),.45));
 }
 
-/* ── MESSAGE ──
-   UX: đây là focal point — to nhất, sáng nhất, căn giữa
-   Không white-space:nowrap → wrap tự nhiên nếu message dài
-   max 2 dòng trông đẹp nhất
-*/
+/* ── MESSAGE ── */
 .msg {
   text-align: center;
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 700;
   letter-spacing: -.025em;
   line-height: 1.35;
@@ -185,10 +173,10 @@ body {
   word-break: break-word;
 }
 
+/* DIVIDER */
 .divider {
   width: 75%;
   height: 1px;
-  /* mở dần từ giữa ra 2 đầu bằng mask */
   background: linear-gradient(
     90deg,
     transparent 0%,
@@ -196,20 +184,16 @@ body {
     rgba(255,255,255,.12) 70%,
     transparent 100%
   );
-  /* animation mở dần từ giữa */
   animation: dividerOpen .5s .22s ease-out both;
   transform-origin: center;
 }
 
-/* ── FOOTER: time + progress gộp thành 1 khối ──
-   UX: không dùng divider cứng nhắc
-   time + countdown cùng hàng với progress bên dưới → đọc liền mạch
-*/
+/* ── FOOTER ── */
 .footer {
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
 .timeRow {
@@ -220,12 +204,11 @@ body {
 
 .time {
   font-family: "DM Mono", monospace;
-  font-size: 12px; font-weight: 500;
+  font-size: 13px; font-weight: 500;
   color: rgba(200,215,255,.40);
   letter-spacing: .06em;
   display: flex; align-items: center; gap: 6px;
 }
-/* Live dot */
 .time::before {
   content: '';
   width: 5px; height: 5px; border-radius: 50%;
@@ -237,14 +220,14 @@ body {
 
 .countdown {
   font-family: "DM Mono", monospace;
-  font-size: 12px; font-weight: 500;
+  font-size: 13px; font-weight: 500;
   color: rgba(var(--accent-rgb),.55);
   letter-spacing: .05em;
 }
 .countdown.urgent { color: #ff6060; animation: urgentPulse .6s ease-in-out infinite; }
 
 .progressBar {
-  width: 100%; height: 5px; border-radius: 999px;
+  width: 100%; height: 6px; border-radius: 999px;
   background: rgba(255,255,255,.08);
   position: relative;
   overflow: hidden;
@@ -262,7 +245,7 @@ body {
 
 /* HINT */
 .hint {
-  font-size: 11px;
+  font-size: 12px;
   color: rgba(200,215,255,.18);
   letter-spacing: .02em;
   text-align: center;
@@ -298,12 +281,10 @@ body {
   0%,100% { transform: scale(.90); opacity: .62; }
   50%     { transform: scale(1.12); opacity: 1;  }
 }
-
 @keyframes blink {
   0%,100% { opacity: .8; }
   50%     { opacity: .25; }
 }
-
 @keyframes urgentPulse {
   0%,100% { opacity: 1; }
   50%     { opacity: .3; }
@@ -356,13 +337,9 @@ const g = parseInt(accentHex.slice(2,4),16)
 const b = parseInt(accentHex.slice(4,6),16)
 document.documentElement.style.setProperty("--accent-rgb", `${r},${g},${b}`)
 
-// Tính gradient card từ accent:
-// Blend accent vào base dark (#0d0e14) với opacity thấp
-// card-top: accent 13% + dark base → góc sáng nhẹ
-// card-mid: accent 6%  + dark base → chuyển tiếp mượt
 const blend = (c, base, ratio) => Math.round(c * ratio + base * (1 - ratio))
-const topR = blend(r, 13, .13), topG = blend(g, 14, .13), topB = blend(b, 20, .13)
-const midR = blend(r, 11, .07), midG = blend(g, 12, .07), midB = blend(b, 17, .07)
+const topR = blend(r, 13, .22), topG = blend(g, 14, .22), topB = blend(b, 20, .22)
+const midR = blend(r, 11, .12), midG = blend(g, 12, .12), midB = blend(b, 17, .12)
 const toHex = n => n.toString(16).padStart(2,'0')
 document.documentElement.style.setProperty("--card-top", `#${toHex(topR)}${toHex(topG)}${toHex(topB)}`)
 document.documentElement.style.setProperty("--card-mid", `#${toHex(midR)}${toHex(midG)}${toHex(midB)}`)

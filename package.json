@@ -1,6 +1,6 @@
 {
   "name": "reminder",
-  "version": "1.0.2",
+  "version": "1.0.5",
   "description": "Reminder for windows",
   "main": "dist-electron/electron/main.js",
   "scripts": {

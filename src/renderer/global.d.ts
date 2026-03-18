@@ -1,5 +1,4 @@
 export {};
-
 declare global {
   interface Window {
     reminder: {
@@ -12,7 +11,7 @@ declare global {
       previewPopup: (cfg: any) => Promise<any>;
       minimizeWindow: () => Promise<any>;
       closeWindow: () => Promise<any>;
+      quitApp: () => Promise<any>;
     };
   }
 }
-

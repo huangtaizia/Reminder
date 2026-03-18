@@ -1,5 +1,4 @@
 import { contextBridge, ipcRenderer } from 'electron';
-
 contextBridge.exposeInMainWorld('reminder', {
   ping: async () => ipcRenderer.invoke('reminder:ping'),
   getState: async () => ipcRenderer.invoke('state:get'),
@@ -10,4 +9,5 @@ contextBridge.exposeInMainWorld('reminder', {
   previewPopup: async (cfg: any) => ipcRenderer.invoke('popup:preview', cfg),
   minimizeWindow: async () => ipcRenderer.invoke('window:minimize'),
   closeWindow: async () => ipcRenderer.invoke('window:close'),
+  quitApp: async () => ipcRenderer.invoke('quit-app'),
 });

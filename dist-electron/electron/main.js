@@ -154,6 +154,9 @@ electron_1.app.whenReady().then(() => {
     });
     createMainWindow();
     createTray();
+    electron_1.ipcMain.handle('quit-app', () => {
+        electron_1.app.quit();
+    });
     scheduler.rescheduleAll(state.reminders, state.settings.masterEnabled);
     electron_1.app.on('activate', () => {
         if (electron_1.BrowserWindow.getAllWindows().length === 0)
