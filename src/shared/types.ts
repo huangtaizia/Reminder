@@ -24,6 +24,7 @@ export type AppSettings = {
   runOnStartup: boolean;
   startMinimized: boolean;
   masterEnabled: boolean;
+  lastVersion?: string;
 };
 
 export type PersistedState = {

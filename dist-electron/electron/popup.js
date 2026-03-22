@@ -70,7 +70,10 @@ function showReminderPopup(reminder) {
         focusable: true,
         show: false,
         webPreferences: {
-            contextIsolation: true
+            contextIsolation: true,
+            // Cải thiện render emoji trên Windows 10:
+            // FontAccess cho phép Chromium dùng font hệ thống tốt hơn
+            enableBlinkFeatures: 'FontAccess',
         }
     });
     /* Always on top nhưng không freeze */
@@ -90,7 +93,6 @@ function showReminderPopup(reminder) {
             electron_1.globalShortcut.unregister(escShortcut);
     });
     /* Load popup.html */
-    // const popupPath = path.join(process.resourcesPath, "popup.html")
     const popupPath = electron_1.app.isPackaged
         ? node_path_1.default.join(process.resourcesPath, "popup.html")
         : node_path_1.default.join(process.cwd(), "public", "popup.html");

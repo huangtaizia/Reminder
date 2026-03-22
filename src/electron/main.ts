@@ -1,9 +1,9 @@
-import { app, BrowserWindow, Tray, Menu, nativeImage, globalShortcut, ipcMain } from 'electron';
+import { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain, session } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
 import { registerIpc } from './ipc';
 import { ReminderScheduler } from './scheduler';
-import { readState } from './store';
+import { readState, setSettings } from './store';
 import { showReminderPopup } from './popup';
 import { hasArg, setAutostartEnabled } from './autostart';
 
@@ -139,45 +139,35 @@ function logPaths() {
   }
 }
 
-app.whenReady().then(() => {
-
+app.whenReady().then(async () => {
   app.setAppUserModelId("com.reminder.app");
 
+  // ── Clear cache khi phát hiện version mới ──
+  const currentVersion = app.getVersion()
+  const savedVersion = readState().settings?.lastVersion as string | undefined
+  if (savedVersion !== currentVersion) {
+    await session.defaultSession.clearCache()
+    await session.defaultSession.clearStorageData({
+      storages: ['cachestorage', 'shadercache']
+    })
+    setSettings({ lastVersion: currentVersion } as any)
+    if (isDev) console.log('[Reminder] cache cleared for version', currentVersion)
+  }
+
   logPaths();
-
   scheduler = new ReminderScheduler((_reminder) => {
-
     if (isDev) console.log('[Reminder] trigger', _reminder.id);
-
     const win = showReminderPopup(_reminder);
-
     if (!win) return;
-
-    // luôn on top
     win.setAlwaysOnTop(true, "screen-saver");
-
-    // giữ focus dù click màn hình khác
     win.on("blur", () => {
       if (!win.isDestroyed()) {
         win.focus();
       }
     });
-
-    // ESC global (hoạt động dù đang focus màn hình khác)
-    globalShortcut.register("Escape", () => {
-      if (!win.isDestroyed()) {
-        win.close();
-      }
-    });
-
-    win.on("closed", () => {
-      globalShortcut.unregister("Escape");
-    });
-
   });
 
   const state = readState();
-
   setAutostartEnabled(
     !!state.settings.runOnStartup,
     { startMinimized: !!state.settings.startMinimized }
@@ -195,6 +185,7 @@ app.whenReady().then(() => {
 
   createMainWindow();
   createTray();
+
   ipcMain.handle('quit-app', () => {
     app.quit();
   });
@@ -204,12 +195,11 @@ app.whenReady().then(() => {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createMainWindow();
   });
-
 });
 
-app.on('will-quit', () => {
-  globalShortcut.unregisterAll();
-});
+// app.on('will-quit', () => {
+//   globalShortcut.unregisterAll();
+// });
 
 app.on('window-all-closed', () => {
   // keep running in tray

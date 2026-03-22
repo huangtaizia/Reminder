@@ -60,7 +60,7 @@ body {
     /* accent tint nhẹ ở chính giữa, fade nhanh — không đổ về góc */
     radial-gradient(
       ellipse 60% 50% at 50% 50%,
-      rgba(var(--accent-rgb),.11) 0%,
+      rgba(var(--accent-rgb),.10) 0%,
       transparent 100%
     ),
     /* nền dark đồng đều — 4 góc cùng màu, không bị tối hơn */
@@ -79,7 +79,7 @@ body {
   box-shadow:
 
     /* inner top highlight — glass edge */
-    0 1px 0 rgba(255,255,255,.11) inset,
+    0 1px 0 rgba(255,255,255,.10) inset,
     /* inner bottom depth */
     0 -1px 0 rgba(0,0,0,.30) inset,
     /* sát card — soft lift */
@@ -91,7 +91,7 @@ body {
     /* accent ambient — halo màu nhẹ */
     0 0 100px -16px rgba(var(--accent-rgb),.28);
 
-  transform: scale(.116);
+  transform: scale(.86);
   animation: cardIn 200ms 16ms cubic-bezier(.34, 1.3, .64, 1) forwards;
   will-change: transform;
 }
@@ -138,13 +138,13 @@ body {
 }
 .blob2 {
   inset: -16px;
-  background: radial-gradient(circle, rgba(var(--accent-rgb),.34) 0%, rgba(var(--accent-rgb),.11) 50%, transparent 72%);
+  background: radial-gradient(circle, rgba(var(--accent-rgb),.34) 0%, rgba(var(--accent-rgb),.10) 50%, transparent 72%);
   filter: blur(8px);
   animation: breathMid 3s ease-in-out infinite .2s;
 }
 .blob3 {
   inset: 0;
-  background: radial-gradient(circle, rgba(var(--accent-rgb),.52) 0%, rgba(var(--accent-rgb),.11) 45%, transparent 70%);
+  background: radial-gradient(circle, rgba(var(--accent-rgb),.52) 0%, rgba(var(--accent-rgb),.18) 45%, transparent 70%);
   filter: blur(5px);
   animation: breathInner 3s ease-in-out infinite .4s;
 }
@@ -162,7 +162,15 @@ body {
 }
 .icon {
   font-size: 34px;
-  filter: drop-shadow(0 2px 6px rgba(var(--accent-rgb),.45));
+  /*
+    Windows 10 emoji có viền đen đậm do font Segoe UI Emoji cũ.
+    filter saturate + brightness làm mềm viền,
+    không dùng drop-shadow vì sẽ làm viền đen nổi rõ hơn.
+  */
+  filter: saturate(1.1) brightness(1.05);
+  /* Render emoji sắc nét hơn trên Windows */
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 /* ── MESSAGE ── */
@@ -220,7 +228,7 @@ body {
   content: '';
   width: 5px; height: 5px; border-radius: 50%;
   background: var(--accent);
-  opacity: .11;
+  opacity: .8;
   animation: blink 2s ease-in-out infinite;
   flex-shrink: 0;
 }
@@ -253,7 +261,7 @@ body {
 /* HINT */
 .hint {
   font-size: 12px;
-  color: rgba(200,215,255,.11);
+  color: rgba(200,215,255,.18);
   letter-spacing: .02em;
   text-align: center;
   margin-top: -4px;
@@ -263,7 +271,7 @@ body {
 @keyframes fadeIn { to { opacity: 1; } }
 
 @keyframes cardIn {
-  from { opacity: 0; transform: scale(.116); }
+  from { opacity: 0; transform: scale(.86); }
   to   { opacity: 1; transform: scale(1);   }
 }
 
@@ -277,11 +285,11 @@ body {
   to   { clip-path: inset(0 0% 0 0%); }
 }
 @keyframes breathOuter {
-  0%,100% { transform: scale(.112); opacity: .50; }
+  0%,100% { transform: scale(.82); opacity: .50; }
   50%     { transform: scale(1.20); opacity: 1;  }
 }
 @keyframes breathMid {
-  0%,100% { transform: scale(.115); opacity: .55; }
+  0%,100% { transform: scale(.85); opacity: .55; }
   50%     { transform: scale(1.16); opacity: 1;  }
 }
 @keyframes breathInner {
@@ -289,7 +297,7 @@ body {
   50%     { transform: scale(1.12); opacity: 1;  }
 }
 @keyframes blink {
-  0%,100% { opacity: .11; }
+  0%,100% { opacity: .8; }
   50%     { opacity: .25; }
 }
 @keyframes urgentPulse {
@@ -345,8 +353,8 @@ const b = parseInt(accentHex.slice(4,6),16)
 document.documentElement.style.setProperty("--accent-rgb", `${r},${g},${b}`)
 
 const blend = (c, base, ratio) => Math.round(c * ratio + base * (1 - ratio))
-const topR = blend(r, 10, .11), topG = blend(g, 11, .11), topB = blend(b, 16, .11)
-const midR = blend(r, 10, .11), midG = blend(g, 11, .11), midB = blend(b, 16, .11)
+const topR = blend(r, 14, .18), topG = blend(g, 16, .18), topB = blend(b, 22, .18)
+const midR = blend(r, 14, .18), midG = blend(g, 16, .18), midB = blend(b, 22, .18)
 const toHex = n => n.toString(16).padStart(2,'0')
 document.documentElement.style.setProperty("--card-top", `#${toHex(topR)}${toHex(topG)}${toHex(topB)}`)
 document.documentElement.style.setProperty("--card-mid", `#${toHex(midR)}${toHex(midG)}${toHex(midB)}`)

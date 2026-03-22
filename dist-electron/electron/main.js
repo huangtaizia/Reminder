@@ -117,8 +117,20 @@ function logPaths() {
         console.log('[Reminder] dataDir:', dataDir);
     }
 }
-electron_1.app.whenReady().then(() => {
+electron_1.app.whenReady().then(async () => {
     electron_1.app.setAppUserModelId("com.reminder.app");
+    // ── Clear cache khi phát hiện version mới ──
+    const currentVersion = electron_1.app.getVersion();
+    const savedVersion = (0, store_1.readState)().settings?.lastVersion;
+    if (savedVersion !== currentVersion) {
+        await electron_1.session.defaultSession.clearCache();
+        await electron_1.session.defaultSession.clearStorageData({
+            storages: ['cachestorage', 'shadercache']
+        });
+        (0, store_1.setSettings)({ lastVersion: currentVersion });
+        if (isDev)
+            console.log('[Reminder] cache cleared for version', currentVersion);
+    }
     logPaths();
     scheduler = new scheduler_1.ReminderScheduler((_reminder) => {
         if (isDev)
@@ -126,22 +138,11 @@ electron_1.app.whenReady().then(() => {
         const win = (0, popup_1.showReminderPopup)(_reminder);
         if (!win)
             return;
-        // luôn on top
         win.setAlwaysOnTop(true, "screen-saver");
-        // giữ focus dù click màn hình khác
         win.on("blur", () => {
             if (!win.isDestroyed()) {
                 win.focus();
             }
-        });
-        // ESC global (hoạt động dù đang focus màn hình khác)
-        electron_1.globalShortcut.register("Escape", () => {
-            if (!win.isDestroyed()) {
-                win.close();
-            }
-        });
-        win.on("closed", () => {
-            electron_1.globalShortcut.unregister("Escape");
         });
     });
     const state = (0, store_1.readState)();
@@ -163,9 +164,9 @@ electron_1.app.whenReady().then(() => {
             createMainWindow();
     });
 });
-electron_1.app.on('will-quit', () => {
-    electron_1.globalShortcut.unregisterAll();
-});
+// app.on('will-quit', () => {
+//   globalShortcut.unregisterAll();
+// });
 electron_1.app.on('window-all-closed', () => {
     // keep running in tray
 });
