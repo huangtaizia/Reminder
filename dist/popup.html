@@ -3,306 +3,207 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
-
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --accent: #3aa8ff;
-  --accent-rgb: 58, 168, 255;
+  --accent:    #4D8EFF;
+  --accent2:   #ADC6FF;
   --bar-duration: 60s;
-  --bar-delay: 0s;
-  --card-w: 600px;
-  --card-top: #1a1e2e;
-  --card-mid: #13151c;
+  --bar-delay:    0s;
 }
 
-html, body { height: 100%; width: 100%; overflow: hidden; }
+html, body {
+  height: 100%; width: 100%;
+  overflow: hidden;
+  background: transparent;
+}
 
 body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: "DM Sans", "Segoe UI Variable", system-ui, -apple-system, sans-serif;
-  color: #e8eeff;
-  background: transparent;
+  font-family: 'Source Sans 3', 'Source Sans Pro', 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
+  color: #DAE2FD;
   -webkit-font-smoothing: antialiased;
 }
 
-/* Dim */
+/* ── FADE IN ── */
 .root {
   position: fixed; inset: 0;
   display: flex; align-items: center; justify-content: center;
   opacity: 0;
-  animation: fadeIn 200ms 16ms ease-out forwards;
-  will-change: opacity;
-}
-.root::before {
-  content: ''; position: fixed; inset: 0;
-  background: rgba(0,0,0,.72);
-  pointer-events: none;
+  animation: fadeIn 180ms 16ms ease-out forwards;
+  background: rgba(0,0,0,0.72);
 }
 
 /* ── CARD ── */
 .card {
   position: relative;
-  width: var(--card-w);
-  border-radius: 22px;
-  padding: 36px 40px 24px;
+  width: calc(100vw - 32px);
+  max-width: 480px;
+  min-width: 300px;
+  border-radius: 18px;
+  background: #131B2E;
+  border: 1px solid rgba(173,198,255,0.14);
+  box-shadow:
+    0 8px 32px rgba(0,0,0,0.6),
+    0 32px 80px rgba(0,0,0,0.55),
+    0 0 0 1px rgba(255,255,255,0.05) inset;
+  overflow: hidden;
+  transform: scale(0.92) translateY(8px);
+  animation: cardIn 220ms 16ms cubic-bezier(0.34, 1.3, 0.64, 1) forwards;
+  will-change: transform, opacity;
+}
+
+/* ── CARD BODY ── */
+.cardBody {
+  padding: 24px 28px 24px;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 24px;
-  isolation: isolate;
-
-  background-image:
-    /* accent tint nhẹ ở chính giữa, fade nhanh — không đổ về góc */
-    radial-gradient(
-      ellipse 60% 50% at 50% 50%,
-      rgba(var(--accent-rgb),.10) 0%,
-      transparent 100%
-    ),
-    /* nền dark đồng đều — 4 góc cùng màu, không bị tối hơn */
-    linear-gradient(180deg, var(--card-top) 0%, var(--card-top) 100%);
-
-  /*
-    Viền 2 lớp để nổi bật trên nền dim:
-    - Lớp ngoài: rgba(.22) — đủ sáng để thấy rõ cạnh card
-    - Lớp trong (inset): rgba(.08) highlight trắng mỏng — glass effect
-    Không dùng màu đặc tránh trông cứng
-  */
-  /* Dùng box-shadow ring thay border để đồng đều độ dày ở góc bo.
-     border thông thường bị antialiasing làm mỏng hơn ở góc cong.
-     box-shadow spread=0 không bị ảnh hưởng bởi border-radius. */
-  border: 1px solid rgba(var(--accent-rgb),.30);
-  box-shadow:
-
-    /* inner top highlight — glass edge */
-    0 1px 0 rgba(255,255,255,.10) inset,
-    /* inner bottom depth */
-    0 -1px 0 rgba(0,0,0,.30) inset,
-    /* sát card — soft lift */
-    0 2px 8px rgba(0,0,0,.45),
-    /* mid elevation */
-    0 12px 40px rgba(0,0,0,.65),
-    /* deep shadow — tách card khỏi nền */
-    0 40px 90px rgba(0,0,0,.75),
-    /* accent ambient — halo màu nhẹ */
-    0 0 100px -16px rgba(var(--accent-rgb),.28);
-
-  transform: scale(.86);
-  animation: cardIn 200ms 16ms cubic-bezier(.34, 1.3, .64, 1) forwards;
-  will-change: transform;
+  gap: 0;
 }
 
-/* Top accent glow line — sáng hơn để thấy rõ cạnh trên */
-.card::before {
-  content: '';
-  position: absolute; top: 0; left: 10%; right: 10%; height: 1px;
-  background: linear-gradient(90deg,
-    transparent,
-    rgba(var(--accent-rgb),.45) 35%,
-    rgba(var(--accent-rgb),.45) 65%,
-    transparent
-  );
-  border-radius: 999px;
-}
-
-
-/* CLOSE */
+/* ── CLOSE ── */
 .close {
-  position: absolute; top: 12px; right: 12px;
-  width: 24px; height: 24px; border-radius: 50%;
+  position: absolute; top: 14px; right: 14px;
+  width: 20px; height: 20px;
+  border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   font-size: 10px; font-weight: 700;
-  color: rgba(255,255,255,.30); cursor: pointer;
-  transition: color .15s, background .15s;
+  color: rgba(173,198,255,0.35);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
 }
-.close:hover { color: rgba(255,255,255,.70); background: rgba(255,255,255,.08); }
-.close:active { transform: scale(.90); }
+.close:hover { color: rgba(173,198,255,0.8); background: rgba(255,255,255,0.06); }
 
-/* ── ICON ── */
-.iconSection {
-  position: relative;
-  width: 110px; height: 110px;
-  display: flex; align-items: center; justify-content: center;
-  margin-top: 0;
+/* ── HEADER ROW: icon + label ── */
+.headerRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
 }
-.blob { position: absolute; border-radius: 50%; pointer-events: none; will-change: transform; }
-.blob1 {
-  inset: -32px;
-  background: radial-gradient(circle, rgba(var(--accent-rgb),.20) 0%, rgba(var(--accent-rgb),.06) 45%, transparent 70%);
-  filter: blur(14px);
-  animation: breathOuter 3s ease-in-out infinite;
+.headerIcon {
+  color: var(--accent2);
+  display: flex; align-items: center;
+  flex-shrink: 0;
+  width: 20px; height: 20px;
+  justify-content: center;
 }
-.blob2 {
-  inset: -16px;
-  background: radial-gradient(circle, rgba(var(--accent-rgb),.34) 0%, rgba(var(--accent-rgb),.10) 50%, transparent 72%);
-  filter: blur(8px);
-  animation: breathMid 3s ease-in-out infinite .2s;
-}
-.blob3 {
-  inset: 0;
-  background: radial-gradient(circle, rgba(var(--accent-rgb),.52) 0%, rgba(var(--accent-rgb),.18) 45%, transparent 70%);
-  filter: blur(5px);
-  animation: breathInner 3s ease-in-out infinite .4s;
-}
-.iconWrap {
-  position: relative;
-  width: 74px; height: 74px; border-radius: 18px;
-  display: flex; align-items: center; justify-content: center;
-  background: linear-gradient(180deg, rgba(var(--accent-rgb),.14), rgba(var(--accent-rgb),.04));
-  border: 1px solid rgba(var(--accent-rgb),.20);
-  box-shadow:
-    0 0 0 1px rgba(255,255,255,.05) inset,
-    0 4px 20px rgba(0,0,0,.45),
-    0 0 20px -10px rgba(var(--accent-rgb),.20);
-  z-index: 1;
-}
-.icon {
-  font-size: 34px;
-  /*
-    Windows 10 emoji có viền đen đậm do font Segoe UI Emoji cũ.
-    filter saturate + brightness làm mềm viền,
-    không dùng drop-shadow vì sẽ làm viền đen nổi rõ hơn.
-  */
-  filter: saturate(1.1) brightness(1.05);
-  /* Render emoji sắc nét hơn trên Windows */
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
+.headerIcon svg { max-width: 20px; max-height: 20px; }
+.headerLabel {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(173,198,255,0.55);
 }
 
 /* ── MESSAGE ── */
 .msg {
-  text-align: center;
-  font-size: 26px;
+  font-size: 24px;
   font-weight: 700;
-  letter-spacing: -.025em;
   line-height: 1.35;
-  width: 100%;
-  color: var(--accent);
-}
-.line {
-  white-space: normal;
+  color: #DAE2FD;
+  letter-spacing: -0.01em;
+  margin-bottom: 24px;
   word-break: break-word;
-}
-
-/* DIVIDER */
-.divider {
-  width: 75%;
-  height: 1px;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(255,255,255,.12) 30%,
-    rgba(255,255,255,.12) 70%,
-    transparent 100%
-  );
-  animation: dividerOpen .5s .22s ease-out both;
-  transform-origin: center;
-}
-
-/* ── FOOTER ── */
-.footer {
+  overflow-wrap: break-word;
+  white-space: normal;
   width: 100%;
+}
+
+/* ── BOTTOM ROW: time + buttons ── */
+.bottomRow {
   display: flex;
-  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between;
   gap: 12px;
 }
 
-.timeRow {
+/* Time section */
+.timeSection { flex: 1; }
+.timeLabel {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(173,198,255,0.4);
+  margin-bottom: 4px;
+}
+.timeValue {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.timeClock {
+  font-size: 32px;
+  font-weight: 300;
+  color: rgba(218,226,253,0.85);
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+.timeZone {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: rgba(173,198,255,0.4);
+  text-transform: uppercase;
 }
 
-.time {
-  font-family: "DM Mono", monospace;
-  font-size: 13px; font-weight: 500;
-  color: rgba(200,215,255,.40);
-  letter-spacing: .06em;
-  display: flex; align-items: center; gap: 6px;
-}
-.time::before {
-  content: '';
-  width: 5px; height: 5px; border-radius: 50%;
-  background: var(--accent);
-  opacity: .8;
-  animation: blink 2s ease-in-out infinite;
+/* Hint */
+.hint {
+  font-size: 12px;
+  color: rgba(173,198,255,0.2);
+  letter-spacing: 0.04em;
+  align-self: flex-end;
+  padding-bottom: 2px;
   flex-shrink: 0;
 }
 
-.countdown {
-  font-family: "DM Mono", monospace;
-  font-size: 13px; font-weight: 500;
-  color: rgba(var(--accent-rgb),.55);
-  letter-spacing: .05em;
-}
-.countdown.urgent { color: #ff6060; animation: urgentPulse .6s ease-in-out infinite; }
-
+/* ── PROGRESS BAR — đáy card ── */
 .progressBar {
-  width: 100%; height: 6px; border-radius: 999px;
-  background: rgba(255,255,255,.08);
+  width: 100%;
+  height: 4px;
+  background: rgba(255,255,255,0.06);
   position: relative;
   overflow: hidden;
 }
 .bar {
   position: absolute; top: 0; left: 0;
-  height: 100%; border-radius: 999px;
-  background: linear-gradient(90deg,
-    rgba(var(--accent-rgb),.90) 0%,
-    rgba(var(--accent-rgb),.45) 100%
-  );
+  height: 100%;
+  border-radius: 0 4px 4px 0;
+  background: linear-gradient(90deg, #ADC6FF 0%, #4D8EFF 100%);
   animation: barShrink var(--bar-duration) var(--bar-delay) linear forwards;
   will-change: width;
 }
 
-/* HINT */
-.hint {
-  font-size: 12px;
-  color: rgba(200,215,255,.18);
-  letter-spacing: .02em;
-  text-align: center;
-  margin-top: -4px;
+/* ── COUNTDOWN (hidden, bên cạnh time) ── */
+.countdown {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(173,198,255,0.35);
+  letter-spacing: 0.06em;
+  margin-top: 2px;
 }
+.countdown.urgent { color: #ff6060; animation: urgentPulse 0.6s ease-in-out infinite; }
 
 /* ── KEYFRAMES ── */
-@keyframes fadeIn { to { opacity: 1; } }
-
-@keyframes cardIn {
-  from { opacity: 0; transform: scale(.86); }
-  to   { opacity: 1; transform: scale(1);   }
+@keyframes fadeIn {
+  to { opacity: 1; }
 }
-
+@keyframes cardIn {
+  from { opacity: 0; transform: scale(0.92) translateY(8px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
 @keyframes barShrink {
   from { width: 100%; }
   to   { width: 0%; }
 }
-
-@keyframes dividerOpen {
-  from { clip-path: inset(0 50% 0 50%); }
-  to   { clip-path: inset(0 0% 0 0%); }
-}
-@keyframes breathOuter {
-  0%,100% { transform: scale(.82); opacity: .50; }
-  50%     { transform: scale(1.20); opacity: 1;  }
-}
-@keyframes breathMid {
-  0%,100% { transform: scale(.85); opacity: .55; }
-  50%     { transform: scale(1.16); opacity: 1;  }
-}
-@keyframes breathInner {
-  0%,100% { transform: scale(.90); opacity: .62; }
-  50%     { transform: scale(1.12); opacity: 1;  }
-}
-@keyframes blink {
-  0%,100% { opacity: .8; }
-  50%     { opacity: .25; }
-}
 @keyframes urgentPulse {
   0%,100% { opacity: 1; }
-  50%     { opacity: .3; }
+  50%     { opacity: 0.3; }
 }
 </style>
 </head>
@@ -310,32 +211,41 @@ body {
 <body>
 <div class="root">
   <div class="card">
-    <div class="close" id="closeBtn">✕</div>
+    <div class="cardBody">
 
-    <div class="iconSection">
-      <div class="blob blob1"></div>
-      <div class="blob blob2"></div>
-      <div class="blob blob3"></div>
-      <div class="iconWrap">
-        <div class="icon" id="icon">⏰</div>
+      <div class="close" id="closeBtn">✕</div>
+
+      <!-- Header: icon + label -->
+      <div class="headerRow">
+        <div class="headerIcon" id="headerIcon">
+          <svg width="12" height="14" viewBox="0 0 12 20" fill="currentColor">
+            <path d="M6.5 0L0 11H5.5V20L12 9H6.5V0Z"/>
+          </svg>
+        </div>
+        <div class="headerLabel" id="headerLabel">Incoming Sync</div>
       </div>
+
+      <!-- Message -->
+      <div class="msg" id="msg">Thông điệp nhắc nhở</div>
+
+      <!-- Bottom: time + hint -->
+      <div class="bottomRow">
+        <div class="timeSection">
+          <div class="timeLabel">Thời gian hiện tại</div>
+          <div class="timeValue">
+            <div class="timeClock" id="clock">00:00</div>
+          </div>
+          <div class="countdown" id="countdown">--:--</div>
+        </div>
+        <div class="hint">Esc hoặc ✕ để đóng</div>
+      </div>
+
     </div>
 
-    <div class="msg" id="msg"></div>
-
-    <div class="divider"></div>
-
-    <div class="footer">
-      <div class="timeRow">
-        <div class="time" id="clock"></div>
-        <div class="countdown" id="countdownNum">--:--</div>
-      </div>
-      <div class="progressBar">
-        <div class="bar" id="bar"></div>
-      </div>
+    <!-- Progress bar sát đáy -->
+    <div class="progressBar">
+      <div class="bar" id="bar"></div>
     </div>
-
-    <div class="hint">Esc hoặc ✕ để đóng</div>
   </div>
 </div>
 
@@ -345,55 +255,69 @@ const CFG = JSON.parse(decodeURIComponent(params.get("cfg") || "{}"))
 CFG.displayMs = CFG.displayMs || 60000
 CFG.startAt   = CFG.startAt   || Date.now()
 
-const accentHex = (CFG.color || "#3aa8ff").replace("#","")
-document.documentElement.style.setProperty("--accent", CFG.color || "#3aa8ff")
-const r = parseInt(accentHex.slice(0,2),16)
-const g = parseInt(accentHex.slice(2,4),16)
-const b = parseInt(accentHex.slice(4,6),16)
-document.documentElement.style.setProperty("--accent-rgb", `${r},${g},${b}`)
+// Message
+const msgEl = document.getElementById("msg")
+msgEl.textContent = CFG.message || CFG.line1 || 'Thông điệp nhắc nhở'
 
-const blend = (c, base, ratio) => Math.round(c * ratio + base * (1 - ratio))
-const topR = blend(r, 14, .18), topG = blend(g, 16, .18), topB = blend(b, 22, .18)
-const midR = blend(r, 14, .18), midG = blend(g, 16, .18), midB = blend(b, 22, .18)
-const toHex = n => n.toString(16).padStart(2,'0')
-document.documentElement.style.setProperty("--card-top", `#${toHex(topR)}${toHex(topG)}${toHex(topB)}`)
-document.documentElement.style.setProperty("--card-mid", `#${toHex(midR)}${toHex(midG)}${toHex(midB)}`)
-
-document.getElementById("icon").innerText = CFG.icon || "⏰"
-
-const msg = document.getElementById("msg")
-if (CFG.line2) {
-  msg.innerHTML = '<div class="line">'+(CFG.line1 || 'Thông điệp nhắc nhở')+'</div><div class="line">'+CFG.line2+'</div>'
-} else {
-  msg.innerHTML = '<div class="line">'+(CFG.line1 || 'Thông điệp nhắc nhở')+'</div>'
+// SVG icons map — đồng bộ với ReminderEditor.tsx
+const ICONS = {
+  water:    { label: 'Uống nước', svg: '<svg width="20" height="20" viewBox="0 0 16 20" fill="currentColor"><path d="M8 0L1 8C1 12.42 4.13 16 8 16C11.87 16 15 12.42 15 8L8 0ZM8 14.5C5 14.5 2.5 11.84 2.5 8.5L8 2.1L13.5 8.5C13.5 11.84 11 14.5 8 14.5Z"/><path d="M4.5 9.5C4.5 11.43 6.07 13 8 13V11.5C6.9 11.5 6 10.6 6 9.5H4.5Z"/></svg>' },
+  run:      { label: 'Vận động',  svg: '<svg width="20" height="20" viewBox="0 0 90 82" fill="currentColor"><path d="M42.918 50.129c-1.144 0-2.277-.497-3.054-1.454-1.367-1.685-1.108-4.159.577-5.526l22.419-18.18c1.685-1.364 4.159-1.108 5.526.577 1.366 1.686 1.108 4.159-.577 5.526L45.39 49.251c-.728.591-1.603.878-2.472.878z"/><path d="M71.946 43.083c-1.343 0-2.648-.69-3.381-1.924l-6.608-11.133c-1.108-1.865-.493-4.276 1.372-5.383 1.866-1.107 4.277-.492 5.383 1.373l4.664 7.857 10.793-5.967c1.9-1.05 4.289-.361 5.339 1.537 1.049 1.899.362 4.289-1.537 5.339l-14.128 7.81c-.605.333-1.257.491-1.897.491z"/><path d="M38.608 34.788c-1.203 0-2.391-.551-3.161-1.593-1.29-1.744-.922-4.204.822-5.494l11.837-8.758c1.092-.808 2.525-.995 3.787-.492l14.893 5.92c2.016.801 3.001 3.085 2.199 5.102-.801 2.017-3.086 3-5.101 2.2l-12.862-5.112-10.08 7.458c-.703.569-1.522.769-2.334.769z"/><circle cx="76.622" cy="19.962" r="6.782"/><path d="M20.115 74.459c-1.237 0-2.455-.582-3.219-1.673-1.246-1.776-.816-4.226.96-5.472l15.626-10.962 5.916-11.901c.966-1.943 3.325-2.733 5.266-1.77 1.943.966 2.735 3.324 1.77 5.266l-6.36 12.795c-.292.587-.726 1.091-1.262 1.467L22.368 73.746c-.687.482-1.474.713-2.253.713z"/><path d="M57.856 56.365c-.504 0-1.017-.098-1.511-.304l-14.943-6.235c-2.002-.835-2.948-3.136-2.112-5.138.836-2.002 3.137-2.946 5.138-2.112L59.37 48.81c2.003.835 2.948 3.136 2.113 5.138-.629 1.507-2.089 2.417-3.627 2.417z"/><path d="M50.014 76.82c-.467 0-.943-.083-1.405-.261-2.026-.777-3.039-3.049-2.262-5.075l7.842-20.456c.777-2.026 3.048-3.04 5.075-2.263s3.038 3.049 2.263 5.075l-7.843 20.456c-.629 1.564-2.119 2.524-3.67 2.524z"/><path d="M31.603 45.981H1.964C.879 45.981 0 45.102 0 44.017c0-1.085.879-1.964 1.964-1.964h29.639c1.085 0 1.964.879 1.964 1.964 0 1.085-.88 1.964-1.964 1.964z"/><path d="M27.581 35.524H9.204c-1.085 0-1.964-.879-1.964-1.964s.879-1.964 1.964-1.964h18.377c1.085 0 1.964.879 1.964 1.964s-.879 1.964-1.964 1.964z"/><path d="M25.168 56.438H9.204c-1.085 0-1.964-.879-1.964-1.964s.879-1.964 1.964-1.964h15.964c1.085 0 1.964.879 1.964 1.964s-.879 1.964-1.964 1.964z"/></svg>' },
+  email:    { label: 'Ghi email', svg: '<svg width="20" height="20" viewBox="0 0 20 16" fill="currentColor"><path d="M18 0H2C0.9 0 0 0.9 0 2V14C0 15.1 0.9 16 2 16H18C19.1 16 20 15.1 20 14V2C20 0.9 19.1 0 18 0ZM18 4L10 9L2 4V2L10 7L18 2V4Z"/></svg>' },
+  coffee:   { label: 'Uống cafe', svg: '<svg width="20" height="20" viewBox="0 0 18 18" fill="currentColor"><path d="M14 6H2V12C2 13.66 3.34 15 5 15H11C12.66 15 14 13.66 14 12V11H15C16.1 11 17 10.1 17 9C17 7.9 16.1 7 15 7H14V6ZM15 9H14V8H15C15.55 8 16 8.45 16 9C16 9.55 15.55 10 15 10V9ZM3 12V7H13V12C13 13.1 12.1 14 11 14H5C3.9 14 3 13.1 3 12Z"/></svg>' },
+  rest:     { label: 'Nghỉ ngơi', svg: '<svg width="20" height="20" viewBox="0 0 18 16" fill="currentColor"><path d="M16 6H2C0.9 6 0 6.9 0 8V14C0 15.1 0.9 16 2 16H16C17.1 16 18 15.1 18 14V8C18 6.9 17.1 6 16 6ZM16 14H2V8H16V14Z"/><path d="M1 5H17V7H1V5Z"/><path d="M5 5C5 3.34 6.34 2 8 2H10C11.66 2 13 3.34 13 5H5Z"/></svg>' },
+  charge:   { label: 'Sạc pin',   svg: '<svg width="20" height="20" viewBox="0 0 16 20" fill="currentColor"><path d="M7 0V8H1L9 20V12H15L7 0Z"/></svg>' },
+  eyes:     { label: 'Nghỉ mắt',  svg: '<svg width="20" height="20" viewBox="0 0 20 14" fill="currentColor"><path d="M10 0C5.45 0 1.57 2.93 0 7C1.57 11.07 5.45 14 10 14C14.55 14 18.43 11.07 20 7C18.43 2.93 14.55 0 10 0ZM10 11.5C7.52 11.5 5.5 9.48 5.5 7C5.5 4.52 7.52 2.5 10 2.5C12.48 2.5 14.5 4.52 14.5 7C14.5 9.48 12.48 11.5 10 11.5ZM10 4.5C8.62 4.5 7.5 5.62 7.5 7C7.5 8.38 8.62 9.5 10 9.5C11.38 9.5 12.5 8.38 12.5 7C12.5 5.62 11.38 4.5 10 4.5Z"/></svg>' },
+  food:     { label: 'Ăn uống',   svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M11 9H9V2H7v7H5V2H3v7c0 2.12 1.66 3.84 3.75 3.97V22h2.5v-9.03C11.34 12.84 13 11.12 13 9V2h-2v7zm5-3v8h2.5v8H21V2c-2.76 0-5 2.24-5 4z"/></svg>' },
+  stretch:  { label: 'Giải trí',  svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M15 7.5V2H9v5.5l3 3 3-3zM7.5 9H2v6h5.5l3-3-3-3zM9 16.5V22h6v-5.5l-3-3-3 3zM16.5 9l-3 3 3 3H22V9h-5.5z"/></svg>' },
+  bike:     { label: 'Đạp xe',    svg: '<svg width="20" height="20" viewBox="0 0 20 16" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="4" cy="12" r="3"/><circle cx="16" cy="12" r="3"/><circle cx="13" cy="3" r="1.5" fill="currentColor" stroke="none"/><path d="M7 4H11L14 9H8L7 4Z"/><path d="M8 9L4 12"/><path d="M14 9L16 12"/><path d="M11 3L14 9"/></svg>' },
+  meditate: { label: 'Thiền',     svg: '<svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><circle cx="10" cy="3" r="2"/><path d="M10 6C10 6 7 7 5 9C7 9 9 9.5 10 11C11 9.5 13 9 15 9C13 7 10 6 10 6Z"/><path d="M3 12C3 12 5 11 7 12L10 15L13 12C15 11 17 12 17 12C17 12 14 13 13 15L10 19L7 15C6 13 3 12 3 12Z"/></svg>' },
+  folder:   { label: 'Tài liệu',  svg: '<svg width="20" height="20" viewBox="0 0 20 18" fill="currentColor"><path d="M18 4H10L8 2H2C0.9 2 0 2.9 0 4V14C0 15.1 0.9 16 2 16H18C19.1 16 20 15.1 20 14V6C20 4.9 19.1 4 18 4ZM18 14H2V4H7.17L9.17 6H18V14Z"/></svg>' },
 }
 
+const iconData = CFG.icon && ICONS[CFG.icon] ? ICONS[CFG.icon] : null
+
+// Render icon SVG vào headerIcon
+const headerIconEl = document.getElementById("headerIcon")
+if (iconData) {
+  headerIconEl.innerHTML = iconData.svg
+} // else giữ icon ⚡ mặc định
+
+// Header label
+const headerLabelEl = document.getElementById("headerLabel")
+if (iconData) {
+  headerLabelEl.textContent = iconData.label
+}
+
+// Close
 function closePopup() { window.close() }
 document.getElementById("closeBtn").onclick = closePopup
-window.addEventListener("keydown", e => { if (e.key==="Escape") closePopup() })
+window.addEventListener("keydown", e => { if (e.key === "Escape") closePopup() })
 
-const clockEl     = document.getElementById("clock")
-const countdownEl = document.getElementById("countdownNum")
+// Clock + countdown
+const clockEl    = document.getElementById("clock")
+const countdownEl = document.getElementById("countdown")
 
 function fmtClock() {
   const d = new Date()
-  return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')
+  return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0')
 }
 function fmtCountdown(ms) {
   if (ms <= 0) return "00:00"
   const s = Math.ceil(ms / 1000)
-  return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')
+  return String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0')
 }
 
+// Progress bar timing
 requestAnimationFrame(() => {
   const elapsed = Date.now() - CFG.startAt
   const remain  = CFG.displayMs - elapsed
   if (remain <= 0) { closePopup(); return }
 
-  document.documentElement.style.setProperty("--bar-duration", (CFG.displayMs/1000).toFixed(4)+"s")
-  document.documentElement.style.setProperty("--bar-delay",    "-"+(elapsed/1000).toFixed(4)+"s")
+  document.documentElement.style.setProperty("--bar-duration", (CFG.displayMs / 1000).toFixed(4) + "s")
+  document.documentElement.style.setProperty("--bar-delay",    "-" + (elapsed / 1000).toFixed(4) + "s")
 
-  clockEl.textContent     = fmtClock()
+  clockEl.textContent    = fmtClock()
   countdownEl.textContent = fmtCountdown(remain)
 
   const timer = setInterval(() => {
