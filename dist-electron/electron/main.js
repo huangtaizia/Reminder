@@ -39,9 +39,11 @@ function ensureDataDir() {
 }
 function createMainWindow() {
     mainWindow = new electron_1.BrowserWindow({
-        width: 560,
-        height: 940,
-        resizable: false,
+        width: 1080,
+        height: 780,
+        minWidth: 1080, // thêm
+        minHeight: 600, // thêm
+        resizable: true,
         icon: node_path_1.default.join(__dirname, '../../build/icons/icon.ico'),
         backgroundColor: '#07101d',
         webPreferences: {

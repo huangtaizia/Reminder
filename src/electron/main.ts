@@ -42,9 +42,11 @@ function ensureDataDir(): string {
 function createMainWindow() {
 
   mainWindow = new BrowserWindow({
-    width: 560,
-    height: 940,
-    resizable: false,
+    width: 1080,
+    height: 780,
+    minWidth: 1080,   // thêm
+    minHeight: 600,  // thêm
+    resizable: true,
     icon: path.join(__dirname, '../../build/icons/icon.ico'),
     backgroundColor: '#07101d',
     webPreferences: {
