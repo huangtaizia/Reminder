@@ -7,117 +7,146 @@ exports.showReminderPopup = showReminderPopup;
 const electron_1 = require("electron");
 const node_path_1 = __importDefault(require("node:path"));
 let popups = [];
-/* ------------------------------------------------ */
-/* UTILS */
-/* ------------------------------------------------ */
 function clamp(n, min, max) {
     return Math.max(min, Math.min(max, n));
 }
-/* ------------------------------------------------ */
-/* TEXT WRAP */
-/* ------------------------------------------------ */
-function wrapToTwoLines(message) {
-    const text = message.replace(/\s+/g, " ").trim();
-    if (!text)
-        return { line1: "", truncated: false };
-    const maxChars = 26;
-    if (text.length <= maxChars)
-        return { line1: text, truncated: false };
-    const cutAtSpace = (s, idx) => {
-        const sub = s.slice(0, idx);
-        const lastSpace = sub.lastIndexOf(" ");
-        return lastSpace > 0 ? lastSpace : idx;
-    };
-    const i1 = cutAtSpace(text, maxChars + 1);
-    const line1 = text.slice(0, i1).trim();
-    const rest = text.slice(i1).trim();
-    if (rest.length <= maxChars)
-        return { line1, line2: rest, truncated: false };
-    const i2 = cutAtSpace(rest, maxChars + 1);
-    const line2 = rest.slice(0, i2).trim();
-    const truncated = rest.slice(i2).trim().length > 0;
-    return { line1, line2, truncated };
-}
-/* ------------------------------------------------ */
-/* CLOSE POPUPS */
-/* ------------------------------------------------ */
-function closeReminder(reminderId) {
-    popups
-        .filter(p => p.reminderId === reminderId)
-        .forEach(p => {
-        if (!p.win.isDestroyed())
-            p.win.close();
-    });
-    popups = popups.filter(p => p.reminderId !== reminderId);
-}
-/* ------------------------------------------------ */
-/* CREATE POPUP */
-/* ------------------------------------------------ */
-function showReminderPopup(reminder) {
-    const primary = electron_1.screen.getPrimaryDisplay();
-    const { width, height } = primary.bounds;
+// Tạo blocker window trên màn hình phụ
+// - Block click (setIgnoreMouseEvents false)
+// - focusable: true để nhận ESC
+// - Khi focus → redirect về mainWin
+// - Khi ESC → đóng mainWin
+function createBlockerWindow(bounds, onEsc, refocusMain) {
     const win = new electron_1.BrowserWindow({
-        width,
-        height,
-        x: primary.bounds.x,
-        y: primary.bounds.y,
+        width: bounds.width,
+        height: bounds.height,
+        x: bounds.x,
+        y: bounds.y,
         frame: false,
         transparent: true,
         resizable: false,
         movable: false,
-        alwaysOnTop: true,
+        skipTaskbar: true,
+        focusable: true,
+        show: false,
+        webPreferences: {
+            contextIsolation: false,
+            nodeIntegration: false,
+        }
+    });
+    win.setIgnoreMouseEvents(false);
+    win.setAlwaysOnTop(true, "screen-saver", 1);
+    win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    // Khi blocker được focus (user click sang màn hình phụ)
+    // redirect ngay về mainWin
+    win.on("focus", refocusMain);
+    // Load HTML với ESC listener
+    // Dùng ipc-renderer không khả dụng vì contextIsolation
+    // Thay vào đó dùng window.close() — main process lắng nghe "close" event
+    const html = `<!DOCTYPE html><html><head>
+    <style>*{margin:0;padding:0}html,body{width:100%;height:100%;background:rgba(0,0,0,0.01);overflow:hidden}</style>
+  </head><body>
+    <script>
+      window.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') window.close();
+      });
+    </script>
+  </body></html>`;
+    win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+    // "close" event = user bấm ESC trên màn hình phụ → đóng toàn bộ
+    win.on("close", onEsc);
+    win.once("ready-to-show", () => {
+        if (!win.isDestroyed())
+            win.show();
+    });
+    return win;
+}
+function showReminderPopup(reminder) {
+    const primary = electron_1.screen.getPrimaryDisplay();
+    const allDisplays = electron_1.screen.getAllDisplays();
+    const { bounds } = primary;
+    const popupPath = electron_1.app.isPackaged
+        ? node_path_1.default.join(process.resourcesPath, "popup.html")
+        : node_path_1.default.join(process.cwd(), "public", "popup.html");
+    // ── Popup chính trên màn hình primary ──
+    const mainWin = new electron_1.BrowserWindow({
+        width: bounds.width,
+        height: bounds.height,
+        x: bounds.x,
+        y: bounds.y,
+        frame: false,
+        transparent: true,
+        resizable: false,
+        movable: false,
         skipTaskbar: true,
         focusable: true,
         show: false,
         webPreferences: {
             contextIsolation: true,
-            // Cải thiện render emoji trên Windows 10:
-            // FontAccess cho phép Chromium dùng font hệ thống tốt hơn
             enableBlinkFeatures: 'FontAccess',
         }
     });
-    /* Always on top nhưng không freeze */
-    win.setAlwaysOnTop(true, "pop-up-menu");
-    /* Hiển thị trên mọi workspace */
-    win.setVisibleOnAllWorkspaces(true);
-    /* ESC global */
-    const escShortcut = "Escape";
-    if (!electron_1.globalShortcut.isRegistered(escShortcut)) {
-        electron_1.globalShortcut.register(escShortcut, () => {
-            if (!win.isDestroyed())
-                win.close();
-        });
-    }
-    win.on("closed", () => {
-        if (electron_1.globalShortcut.isRegistered(escShortcut))
-            electron_1.globalShortcut.unregister(escShortcut);
+    mainWin.setIgnoreMouseEvents(false);
+    mainWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    mainWin.setAlwaysOnTop(true, "screen-saver", 1);
+    const refocusMain = () => {
+        if (!mainWin.isDestroyed())
+            mainWin.focus();
+    };
+    const closeAll = () => {
+        if (!mainWin.isDestroyed())
+            mainWin.close();
+    };
+    // ── Blocker windows trên màn hình phụ ──
+    const blockWins = allDisplays
+        .filter(d => d.id !== primary.id)
+        .map(d => createBlockerWindow(d.bounds, closeAll, refocusMain));
+    // Focus lock trên mainWin
+    let focusInterval = null;
+    mainWin.on("blur", refocusMain);
+    mainWin.once("show", () => {
+        mainWin.focus();
+        focusInterval = setInterval(() => {
+            if (mainWin.isDestroyed()) {
+                clearInterval(focusInterval);
+                return;
+            }
+            if (!mainWin.isFocused())
+                mainWin.focus();
+        }, 100);
     });
-    /* Load popup.html */
-    const popupPath = electron_1.app.isPackaged
-        ? node_path_1.default.join(process.resourcesPath, "popup.html")
-        : node_path_1.default.join(process.cwd(), "public", "popup.html");
-    console.log("Popup path:", popupPath);
-    win.loadFile(popupPath, {
+    // Cleanup khi mainWin đóng
+    mainWin.on("closed", () => {
+        mainWin.off("blur", refocusMain);
+        if (focusInterval) {
+            clearInterval(focusInterval);
+            focusInterval = null;
+        }
+        // Bỏ close listener trên blockWins trước khi đóng
+        // để tránh loop closeAll → closed → closeAll
+        blockWins.forEach(w => {
+            w.removeAllListeners("close");
+            if (!w.isDestroyed())
+                w.close();
+        });
+        popups = popups.filter(p => p.mainWin !== mainWin);
+    });
+    mainWin.loadFile(popupPath, {
         query: {
             cfg: JSON.stringify({
                 color: reminder.config.color,
                 icon: reminder.config.icon,
-                ...wrapToTwoLines(reminder.config.message),
+                message: reminder.config.message,
                 displayMs: clamp(reminder.config.displayMs, 60_000, 24 * 60 * 60_000),
                 startAt: Date.now()
             })
         }
     });
-    /* Show khi ready */
-    win.once("ready-to-show", () => {
-        if (!win.isDestroyed()) {
-            win.show();
-            win.focus();
+    mainWin.once("ready-to-show", () => {
+        if (!mainWin.isDestroyed()) {
+            mainWin.show();
+            mainWin.focus();
         }
     });
-    popups.push({
-        win,
-        reminderId: reminder.id
-    });
-    return win;
+    popups.push({ mainWin, blockWins, reminderId: reminder.id });
+    return mainWin;
 }

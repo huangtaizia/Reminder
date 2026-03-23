@@ -5,7 +5,7 @@ import { registerIpc } from './ipc';
 import { ReminderScheduler } from './scheduler';
 import { readState, setSettings } from './store';
 import { showReminderPopup } from './popup';
-import { hasArg, setAutostartEnabled } from './autostart';
+import { setAutostartEnabled } from './autostart';
 
 const dataDir = path.join(app.getPath('appData'), 'Reminder')
 
@@ -17,13 +17,12 @@ const isDev = !app.isPackaged;
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
-let scheduler: ReminderScheduler | null = null;
+let scheduler: ReminderScheduler | undefined = undefined;
 
 console.log("DIR:", __dirname);
 
 function getAppRootPortable(): string {
-  const exeDir = path.dirname(app.getPath('exe'));
-  return exeDir;
+  return path.dirname(app.getPath('exe'));
 }
 
 function ensureDataDir(): string {
@@ -40,12 +39,11 @@ function ensureDataDir(): string {
 }
 
 function createMainWindow() {
-
   mainWindow = new BrowserWindow({
-    width: 1080,
+    width: 1240,
     height: 780,
-    minWidth: 1080,   // thêm
-    minHeight: 600,  // thêm
+    minWidth: 1240,
+    minHeight: 600,
     resizable: true,
     icon: path.join(__dirname, '../../build/icons/icon.ico'),
     backgroundColor: '#07101d',
@@ -68,25 +66,16 @@ function createMainWindow() {
     mainWindow.loadFile(path.join(__dirname, '../../dist/index.html'));
   }
 
-  let quitting = false;
-
-  app.on("before-quit", () => {
-    quitting = true;
-  });
+  app.on("before-quit", () => {});
 }
 
 function createTray() {
-
   const trayIconPath = app.isPackaged
     ? path.join(process.resourcesPath, "tray.png")
     : path.join(process.cwd(), "public", "tray.png");
 
   let icon = nativeImage.createFromPath(trayIconPath);
-
-  icon = icon.resize({
-    width: 20,
-    height: 20
-  });
+  icon = icon.resize({ width: 20, height: 20 });
 
   if (icon.isEmpty()) {
     console.error("Tray icon failed to load");
@@ -98,23 +87,18 @@ function createTray() {
     {
       label: "Mở Reminder",
       click: () => {
-
         if (!mainWindow || mainWindow.isDestroyed()) {
-          createMainWindow()
-          return
+          createMainWindow();
+          return;
         }
-      
-        mainWindow.show()
-        mainWindow.focus()
-      
+        mainWindow.show();
+        mainWindow.focus();
       },
     },
     { type: "separator" },
     {
       label: "Thoát",
-      click: () => {
-        app.quit();
-      },
+      click: () => { app.quit(); },
     },
   ]);
 
@@ -122,16 +106,13 @@ function createTray() {
   tray.setContextMenu(ctx);
 
   tray.on("double-click", () => {
-
     if (!mainWindow || mainWindow.isDestroyed()) {
-      createMainWindow()
-      return
+      createMainWindow();
+      return;
     }
-  
-    mainWindow.show()
-    mainWindow.focus()
-  
-  })
+    mainWindow.show();
+    mainWindow.focus();
+  });
 }
 
 function logPaths() {
@@ -145,31 +126,26 @@ app.whenReady().then(async () => {
   app.setAppUserModelId("com.reminder.app");
 
   // ── Clear cache khi phát hiện version mới ──
-  const currentVersion = app.getVersion()
-  const savedVersion = readState().settings?.lastVersion as string | undefined
+  const currentVersion = app.getVersion();
+  const savedVersion = readState().settings?.lastVersion as string | undefined;
   if (savedVersion !== currentVersion) {
-    await session.defaultSession.clearCache()
+    await session.defaultSession.clearCache();
     await session.defaultSession.clearStorageData({
       storages: ['cachestorage', 'shadercache']
-    })
-    setSettings({ lastVersion: currentVersion } as any)
-    if (isDev) console.log('[Reminder] cache cleared for version', currentVersion)
+    });
+    setSettings({ lastVersion: currentVersion } as any);
+    if (isDev) console.log('[Reminder] cache cleared for version', currentVersion);
   }
 
   logPaths();
+
   scheduler = new ReminderScheduler((_reminder) => {
     if (isDev) console.log('[Reminder] trigger', _reminder.id);
-    const win = showReminderPopup(_reminder);
-    if (!win) return;
-    win.setAlwaysOnTop(true, "screen-saver");
-    win.on("blur", () => {
-      if (!win.isDestroyed()) {
-        win.focus();
-      }
-    });
+    showReminderPopup(_reminder);
   });
 
   const state = readState();
+
   setAutostartEnabled(
     !!state.settings.runOnStartup,
     { startMinimized: !!state.settings.startMinimized }
@@ -199,13 +175,10 @@ app.whenReady().then(async () => {
   });
 });
 
-// app.on('will-quit', () => {
-//   globalShortcut.unregisterAll();
-// });
-
 app.on('window-all-closed', () => {
   // keep running in tray
 });
+
 app.commandLine.appendSwitch("disable-backgrounding-occluded-windows");
 console.log("PRELOAD PATH:", path.join(__dirname, 'preload.js'));
 console.log("EXISTS:", fs.existsSync(path.join(__dirname, 'preload.js')));

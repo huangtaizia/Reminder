@@ -18,11 +18,10 @@ electron_1.app.setPath('cache', node_path_1.default.join(dataDir, 'cache'));
 const isDev = !electron_1.app.isPackaged;
 let mainWindow = null;
 let tray = null;
-let scheduler = null;
+let scheduler = undefined;
 console.log("DIR:", __dirname);
 function getAppRootPortable() {
-    const exeDir = node_path_1.default.dirname(electron_1.app.getPath('exe'));
-    return exeDir;
+    return node_path_1.default.dirname(electron_1.app.getPath('exe'));
 }
 function ensureDataDir() {
     const preferred = node_path_1.default.join(getAppRootPortable(), 'data');
@@ -39,10 +38,10 @@ function ensureDataDir() {
 }
 function createMainWindow() {
     mainWindow = new electron_1.BrowserWindow({
-        width: 1080,
+        width: 1240,
         height: 780,
-        minWidth: 1080, // thêm
-        minHeight: 600, // thêm
+        minWidth: 1240,
+        minHeight: 600,
         resizable: true,
         icon: node_path_1.default.join(__dirname, '../../build/icons/icon.ico'),
         backgroundColor: '#07101d',
@@ -64,20 +63,14 @@ function createMainWindow() {
     else {
         mainWindow.loadFile(node_path_1.default.join(__dirname, '../../dist/index.html'));
     }
-    let quitting = false;
-    electron_1.app.on("before-quit", () => {
-        quitting = true;
-    });
+    electron_1.app.on("before-quit", () => { });
 }
 function createTray() {
     const trayIconPath = electron_1.app.isPackaged
         ? node_path_1.default.join(process.resourcesPath, "tray.png")
         : node_path_1.default.join(process.cwd(), "public", "tray.png");
     let icon = electron_1.nativeImage.createFromPath(trayIconPath);
-    icon = icon.resize({
-        width: 20,
-        height: 20
-    });
+    icon = icon.resize({ width: 20, height: 20 });
     if (icon.isEmpty()) {
         console.error("Tray icon failed to load");
     }
@@ -97,9 +90,7 @@ function createTray() {
         { type: "separator" },
         {
             label: "Thoát",
-            click: () => {
-                electron_1.app.quit();
-            },
+            click: () => { electron_1.app.quit(); },
         },
     ]);
     tray.setToolTip("Reminder");
@@ -137,15 +128,7 @@ electron_1.app.whenReady().then(async () => {
     scheduler = new scheduler_1.ReminderScheduler((_reminder) => {
         if (isDev)
             console.log('[Reminder] trigger', _reminder.id);
-        const win = (0, popup_1.showReminderPopup)(_reminder);
-        if (!win)
-            return;
-        win.setAlwaysOnTop(true, "screen-saver");
-        win.on("blur", () => {
-            if (!win.isDestroyed()) {
-                win.focus();
-            }
-        });
+        (0, popup_1.showReminderPopup)(_reminder);
     });
     const state = (0, store_1.readState)();
     (0, autostart_1.setAutostartEnabled)(!!state.settings.runOnStartup, { startMinimized: !!state.settings.startMinimized }).catch(() => { });
@@ -166,9 +149,6 @@ electron_1.app.whenReady().then(async () => {
             createMainWindow();
     });
 });
-// app.on('will-quit', () => {
-//   globalShortcut.unregisterAll();
-// });
 electron_1.app.on('window-all-closed', () => {
     // keep running in tray
 });

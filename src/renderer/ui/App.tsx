@@ -37,6 +37,12 @@ const IconPlus = () => (
   </svg>
 );
 
+const IconPencil = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />
+  </svg>
+);
+
 const IconSettings = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
     <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" />
@@ -53,67 +59,113 @@ function CloseDialog({ onTray, onQuit, onCancel }: {
     <div
       style={{
         position: 'fixed', inset: 0, zIndex: 999,
-        background: 'rgba(0,0,0,.65)',
+        background: 'rgba(0,0,0,.72)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}
       onClick={onCancel}
     >
       <div
         style={{
-          background: 'linear-gradient(180deg,#141e2e 0%,#0e1520 100%)',
-          border: '1px solid rgba(255,255,255,.10)',
-          borderRadius: 16, padding: '24px 24px 20px', width: 300,
-          display: 'flex', flexDirection: 'column', gap: 14,
-          boxShadow: '0 24px 60px rgba(0,0,0,.6)',
+          background: '#131B2E',
+          border: '1px solid rgba(173,198,255,.12)',
+          borderRadius: 18, padding: '32px 28px 24px', width: 420,
+          display: 'flex', flexDirection: 'column', gap: 20,
+          boxShadow: '0 32px 80px rgba(0,0,0,.6)',
         }}
         onClick={e => e.stopPropagation()}
       >
-        <div style={{ textAlign: 'center' }}>
-          <IconBell />
-          <div style={{ fontWeight: 700, fontSize: 14, color: '#e8eeff' }}>Đóng cửa sổ</div>
-          <div style={{ fontSize: 12, color: 'rgba(180,200,240,.45)', marginTop: 4 }}>Bạn muốn làm gì với ứng dụng?</div>
+        {/* Header */}
+        <div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: '#DAE2FD', marginBottom: 6 }}>
+            Đóng cửa sổ
+          </div>
+          <div style={{ fontSize: 14, color: 'rgba(173,198,255,.5)', lineHeight: 1.5 }}>
+            Bạn muốn làm gì với ứng dụng?
+          </div>
         </div>
 
-        <div style={{ height: 1, background: 'rgba(255,255,255,.07)' }} />
+        {/* Divider */}
+        <div style={{ height: 1, background: 'rgba(173,198,255,.08)' }} />
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {/* Options */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <button
             onClick={onTray}
             style={{
-              display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10,
-              background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)',
+              display: 'flex', alignItems: 'center', gap: 16,
+              padding: '16px 18px', borderRadius: 12,
+              background: '#222A3D', border: '1px solid #424754',
               cursor: 'pointer', textAlign: 'left', width: '100%',
+              transition: 'border-color .15s',
             }}
+            onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(173,198,255,.35)')}
+            onMouseLeave={e => (e.currentTarget.style.borderColor = '#424754')}
           >
-            <IconFolder />
+            <div style={{
+              width: 40, height: 40, borderRadius: 10, flexShrink: 0,
+              background: 'rgba(110,231,183,.1)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <IconFolder />
+            </div>
             <div>
-              <div style={{ fontSize: 12.5, fontWeight: 600, color: '#6ee7b7' }}>Chạy dưới khay hệ thống</div>
-              <div style={{ fontSize: 11, color: 'rgba(180,200,240,.4)', marginTop: 1 }}>Vẫn hoạt động và nhắc nhở</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: '#DAE2FD' }}>
+                Chạy dưới khay hệ thống
+              </div>
+              <div style={{ fontSize: 13, color: 'rgba(173,198,255,.45)', marginTop: 3 }}>
+                Vẫn hoạt động và nhắc nhở bình thường
+              </div>
             </div>
           </button>
 
           <button
             onClick={onQuit}
             style={{
-              display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10,
-              background: 'rgba(255,80,80,.06)', border: '1px solid rgba(255,80,80,.12)',
+              display: 'flex', alignItems: 'center', gap: 16,
+              padding: '16px 18px', borderRadius: 12,
+              background: 'rgba(240,68,68,.06)', border: '1px solid rgba(240,68,68,.2)',
               cursor: 'pointer', textAlign: 'left', width: '100%',
+              transition: 'border-color .15s',
             }}
+            onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(240,68,68,.45)')}
+            onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(240,68,68,.2)')}
           >
-            <IconPower />
+            <div style={{
+              width: 40, height: 40, borderRadius: 10, flexShrink: 0,
+              background: 'rgba(240,68,68,.12)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <IconPower />
+            </div>
             <div>
-              <div style={{ fontSize: 12.5, fontWeight: 600, color: '#ff8080' }}>Thoát hoàn toàn</div>
-              <div style={{ fontSize: 11, color: 'rgba(180,200,240,.4)', marginTop: 1 }}>Dừng nhắc nhở và đóng app</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: '#ff8080' }}>
+                Thoát hoàn toàn
+              </div>
+              <div style={{ fontSize: 13, color: 'rgba(173,198,255,.45)', marginTop: 3 }}>
+                Dừng nhắc nhở và đóng ứng dụng
+              </div>
             </div>
           </button>
         </div>
 
+        {/* Cancel */}
         <button
           onClick={onCancel}
           style={{
-            padding: '8px', borderRadius: 8, background: 'transparent',
-            border: '1px solid rgba(255,255,255,.07)',
-            color: 'rgba(180,200,240,.4)', fontSize: 12, cursor: 'pointer',
+            height: 40, borderRadius: 10,
+            background: 'transparent',
+            border: '1px solid rgba(173,198,255,.12)',
+            color: 'rgba(173,198,255,.4)', fontSize: 14,
+            cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500,
+            transition: 'color .15s, border-color .15s',
+          }}
+          onMouseEnter={e => {
+            e.currentTarget.style.color = 'rgba(173,198,255,.7)';
+            e.currentTarget.style.borderColor = 'rgba(173,198,255,.25)';
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.color = 'rgba(173,198,255,.4)';
+            e.currentTarget.style.borderColor = 'rgba(173,198,255,.12)';
           }}
         >
           Huỷ
@@ -161,7 +213,7 @@ export function App() {
 
   const navItems: { key: TabKey; label: string; icon: React.ReactNode }[] = [
     { key: 'list',     label: 'Reminders',  icon: <IconReminders /> },
-    { key: 'create',   label: 'Create New', icon: <IconPlus /> },
+    { key: 'create',   label: editing ? 'Edit Reminder' : 'New Reminder', icon: editing ? <IconPencil /> : <IconPlus /> },
     { key: 'settings', label: 'Settings',   icon: <IconSettings /> },
   ];
 
@@ -192,7 +244,7 @@ export function App() {
 
         {/* Sidebar */}
         <div className="sidebar">
-          <div className="sidebarLogo" style={{ padding: '16px 20px 0' }}>
+          <div className="sidebarLogo" style={{ padding: '12px 20px 0' }}>
             <div className="appIcon" />
             <div className="appBrand">
               <div className="appName">Reminder</div>
@@ -200,7 +252,7 @@ export function App() {
             </div>
           </div>
 
-          <div className="sidebarNav" style={{ padding: '0 20px', marginTop: 16 }}>
+          <div className="sidebarNav" style={{ padding: '0 20px', marginTop: 10 }}>
             {navItems.map(item => (
               <div
                 key={item.key}

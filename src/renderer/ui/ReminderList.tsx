@@ -2,9 +2,30 @@ import React from 'react';
 import type { Reminder } from '../../shared/types';
 import { ICONS } from './ReminderEditor';
 
-function renderIcon(id: string, active: boolean): React.ReactNode {
-  const found = ICONS.find(i => i.id === id);
-  if (!found) return <span style={{ fontSize: 18 }}>🔔</span>;
+// Map emoji cũ → id mới (tương thích data cũ trước khi đổi sang SVG icon)
+const EMOJI_TO_ID: Record<string, string> = {
+  '💧': 'water', '🏃': 'run', '✉️': 'email', '☕': 'coffee',
+  '🧘': 'rest',  '⚡': 'charge', '👀': 'eyes', '🍎': 'food',
+  '🚲': 'bike',  '🌈': 'meditate', '🎮': 'stretch', '📁': 'folder',
+  '💉': 'water', '🎥': 'folder',
+};
+
+function renderIcon(iconValue: string, active: boolean): React.ReactNode {
+  const resolvedId = ICONS.find(i => i.id === iconValue)
+    ? iconValue
+    : (EMOJI_TO_ID[iconValue] ?? null);
+
+  const found = resolvedId ? ICONS.find(i => i.id === resolvedId) : null;
+
+  if (!found) {
+    // Emoji gốc hoặc fallback chuông
+    return (
+      <span style={{ fontSize: 20, lineHeight: 1 }}>
+        {iconValue && iconValue.length <= 2 ? iconValue : '🔔'}
+      </span>
+    );
+  }
+
   return (
     <div style={{
       color: active ? '#ADC6FF' : '#C2C6D6',
