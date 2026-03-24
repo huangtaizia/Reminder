@@ -14,9 +14,9 @@
   --accent:      #ADC6FF;
   --accent-blue: #4D8EFF;
   --accent-dim:  rgba(173,198,255,0.1);
-  --danger:      #ff5e4c;
+  --danger:      #ec5a4aef;
   --sidebar-w:   256px;
-  --radius:      8px;
+  --radius:      16px;
   --radius-sm:   8px;
   --transition:  150ms ease;
   /* Fonts */
@@ -48,7 +48,7 @@ body {
 .window {
   width: 100vw;
   height: 100vh;
-  min-width: 1024px;
+  min-width: 1240px;
   min-height: 600px;
   display: flex;
   flex-direction: column;
@@ -67,7 +67,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  padding-right: 10px;
+  padding-right: 8px;
 }
 .titlebar .right {
   -webkit-app-region: no-drag;
@@ -109,32 +109,33 @@ body {
 
 /* Logo area */
 .sidebarLogo {
-  padding: 16px 20px 12px;
+  padding: 18px 16px 8px;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 .appIcon {
-  width: 42px; height: 42px;
+  width: 64px; height: 64px;
   background-image: url("/icon.png");
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
   flex-shrink: 0;
-  border-radius: 10px;
+  border-radius: 12px;
 }
-.appBrand { display: flex; flex-direction: column; gap: 1px; }
+.appBrand { display: flex; flex-direction: column; gap: 3px; }
 .appName {
   font-family: var(--font-display);
-  font-size: 16px; font-weight: 700;
+  font-size: 32px; font-weight: 700;
   letter-spacing: 0.35px; color: #DAE2FD;
-  line-height: 28px;
+  line-height: 1.2;
 }
 .appTagline {
   font-family: var(--font-display);
-  font-size: 10px; color: rgba(173,198,255,0.6);
-  letter-spacing: 2px; text-transform: uppercase;
-  line-height: 20px;
+  font-size: 11px; color: rgba(173,198,255,0.55);
+  letter-spacing: 1.5px; text-transform: uppercase;
+  line-height: 1.4;
+  text-align: left;
 }
 
 /* Nav items */
@@ -390,17 +391,16 @@ body {
 /* ── TOGGLE ── */
 .toggle {
   width: 44px; height: 24px;
-  background: #2f3a55ee;
+  background: #2f3f64c5;
   border: none;
   border-radius: 9999px;
   padding: 2px;
   cursor: pointer;
   position: relative;
-  position: relative;
   flex-shrink: 0;
   transition: background 160ms ease;
 }
-.toggle.on { background: #40ac49; }
+.toggle.on { background: #38ff48; }
 .toggleKnob {
   width: 20px; height: 20px;
   border-radius: 9999px;
@@ -537,7 +537,7 @@ body {
 
 /* Buttons */
 .btn {
-  height: 40px; padding: 0 18px; border-radius: var(--radius);
+  height: 42px; padding: 0 18px; border-radius: var(--radius-sm);
   border: 1px solid #424754;
   background: #222A3D;
   color: #DAE2FD; cursor: pointer;
@@ -553,8 +553,8 @@ body {
   box-shadow: 0 0 16px rgba(77,142,255,0.25);
 }
 .btn.primary:hover { opacity: 0.9; }
-.btn.danger { background: var(--danger); color: #fff; border-color: transparent; justify-content: center; }
-.btn.danger:hover { background: #ff3434; }
+.btn.danger { background: var(--danger); color: #f0f0f0; border-color: transparent;}
+.btn.danger:hover { background: #fd2d2d; }
 
 .btnRow { display: flex; gap: 8px; }
 

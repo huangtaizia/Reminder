@@ -244,7 +244,7 @@ export function App() {
 
         {/* Sidebar */}
         <div className="sidebar">
-          <div className="sidebarLogo" style={{ padding: '12px 20px 0' }}>
+          <div className="sidebarLogo" style={{ padding: '8px 16px 0' }}>
             <div className="appIcon" />
             <div className="appBrand">
               <div className="appName">Reminder</div>

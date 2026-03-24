@@ -53,8 +53,8 @@ export function Settings() {
             <div className="settingTitle">Đặt lại tất cả</div>
             <div className="settingDesc">Xóa toàn bộ nhắc nhở và cài đặt về mặc định</div>
           </div>
-          <button
-            className="btn danger"
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <button className="btn danger"
             onClick={async () => {
               const s = await window.reminder.resetAll();
               setAutostart(!!s?.settings?.runOnStartup);
@@ -67,8 +67,9 @@ export function Settings() {
             Đặt lại tất cả
           </button>
         </div>
+        </div>
+        
       </div>
-
       <div style={{ height: 20 }} />
     </div>
   );

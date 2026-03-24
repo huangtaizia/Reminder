@@ -271,16 +271,35 @@ export function ReminderEditor({ initial, onSaved }: { initial?: Reminder | null
           {scheduleType === 'fixed' && (
             <div>
               <div style={{ fontSize: 14, color: '#C2C6D6', marginBottom: 8 }}>Thời gian bắt đầu</div>
-              <div style={{ background: '#222A3D', borderRadius: 12, padding: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
-                <input type="number" min={0} max={23} value={fixedHour}
-                  onChange={e => setFixedHour(Math.max(0, Math.min(23, Number(e.target.value))))}
-                  style={{ width: 44, background: 'transparent', border: 'none', color: '#DAE2FD', fontSize: 16, textAlign: 'center', outline: 'none', fontFamily: 'inherit' }}
-                />
-                <span style={{ color: '#DAE2FD', opacity: 0.5, fontWeight: 700 }}>:</span>
-                <input type="number" min={0} max={59} value={fixedMinute}
-                  onChange={e => setFixedMinute(Math.max(0, Math.min(59, Number(e.target.value))))}
-                  style={{ width: 44, background: 'transparent', border: 'none', color: '#DAE2FD', fontSize: 16, textAlign: 'center', outline: 'none', fontFamily: 'inherit' }}
-                />
+              <div style={{
+                background: '#222A3D', borderRadius: 12, padding: '10px 16px',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0,
+                border: '1px solid #424754',
+              }}>
+                {/* Giờ */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                  <button onClick={() => setFixedHour(h => h >= 23 ? 0 : h + 1)}
+                    style={{ background: 'none', border: 'none', color: '#ADC6FF', cursor: 'pointer', fontSize: 16, padding: '2px 12px', lineHeight: 1 }}>▲</button>
+                  <div style={{ fontSize: 28, fontWeight: 700, color: '#DAE2FD', minWidth: 52, textAlign: 'center', letterSpacing: 1 }}>
+                    {String(fixedHour).padStart(2, '0')}
+                  </div>
+                  <button onClick={() => setFixedHour(h => h <= 0 ? 23 : h - 1)}
+                    style={{ background: 'none', border: 'none', color: '#ADC6FF', cursor: 'pointer', fontSize: 16, padding: '2px 12px', lineHeight: 1 }}>▼</button>
+                </div>
+                <div style={{ fontSize: 28, fontWeight: 700, color: 'rgba(173,198,255,0.4)', padding: '0 4px', userSelect: 'none' }}>:</div>
+                {/* Phút */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                  <button onClick={() => setFixedMinute(m => m >= 59 ? 0 : m + 1)}
+                    style={{ background: 'none', border: 'none', color: '#ADC6FF', cursor: 'pointer', fontSize: 16, padding: '2px 12px', lineHeight: 1 }}>▲</button>
+                  <div style={{ fontSize: 28, fontWeight: 700, color: '#DAE2FD', minWidth: 52, textAlign: 'center', letterSpacing: 1 }}>
+                    {String(fixedMinute).padStart(2, '0')}
+                  </div>
+                  <button onClick={() => setFixedMinute(m => m <= 0 ? 59 : m - 1)}
+                    style={{ background: 'none', border: 'none', color: '#ADC6FF', cursor: 'pointer', fontSize: 16, padding: '2px 12px', lineHeight: 1 }}>▼</button>
+                </div>
+              </div>
+              <div style={{ fontSize: 12, color: 'rgba(173,198,255,0.35)', marginTop: 6, textAlign: 'center' }}>
+                Nhắc nhở mỗi ngày lúc {String(fixedHour).padStart(2,'0')}:{String(fixedMinute).padStart(2,'0')}
               </div>
             </div>
           )}
@@ -289,16 +308,34 @@ export function ReminderEditor({ initial, onSaved }: { initial?: Reminder | null
           {scheduleType === 'interval' && (
             <div>
               <div style={{ fontSize: 14, color: '#C2C6D6', marginBottom: 8 }}>Tần suất lặp lại</div>
-              <div style={{ background: '#222A3D', borderRadius: 12, padding: '0 12px' }}>
+              <div style={{ position: 'relative' }}>
                 <select value={intervalMin} onChange={e => setIntervalMin(Number(e.target.value))}
-                  style={{ width: '100%', height: 48, background: 'transparent', border: 'none', color: '#DAE2FD', fontSize: 15, outline: 'none', fontFamily: 'inherit', cursor: 'pointer', appearance: 'none' }}>
-                  <option value={15}>Mỗi 15 phút</option>
-                  <option value={30}>Mỗi 30 phút</option>
-                  <option value={60}>Mỗi 1 giờ</option>
-                  <option value={120}>Mỗi 2 giờ</option>
-                  <option value={180}>Mỗi 3 giờ</option>
-                  <option value={240}>Mỗi 4 giờ</option>
+                  style={{
+                    width: '100%', height: 48,
+                    background: '#222A3D',
+                    border: '1px solid #424754',
+                    borderRadius: 12,
+                    color: '#DAE2FD', fontSize: 14,
+                    outline: 'none', fontFamily: 'inherit',
+                    cursor: 'pointer', appearance: 'none',
+                    paddingLeft: 16, paddingRight: 40,
+                  }}>
+                  <option value={15}  style={{ background: '#1a2236', color: '#DAE2FD' }}>Mỗi 15 phút</option>
+                  <option value={30}  style={{ background: '#1a2236', color: '#DAE2FD' }}>Mỗi 30 phút</option>
+                  <option value={60}  style={{ background: '#1a2236', color: '#DAE2FD' }}>Mỗi 1 giờ</option>
+                  <option value={120} style={{ background: '#1a2236', color: '#DAE2FD' }}>Mỗi 2 giờ</option>
+                  <option value={180} style={{ background: '#1a2236', color: '#DAE2FD' }}>Mỗi 3 giờ</option>
+                  <option value={240} style={{ background: '#1a2236', color: '#DAE2FD' }}>Mỗi 4 giờ</option>
                 </select>
+                {/* Chevron icon */}
+                <div style={{
+                  position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)',
+                  pointerEvents: 'none', color: '#ADC6FF',
+                }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M7 10l5 5 5-5z"/>
+                  </svg>
+                </div>
               </div>
             </div>
           )}
