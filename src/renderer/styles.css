@@ -434,7 +434,7 @@ body {
   flex-shrink: 0;
 }
 .contentTitle {
-  font-size: 22px; font-weight: 800;
+  font-size: 22px; font-weight: 600;
   letter-spacing: -.025em; color: var(--text); line-height: 1.1;
 }
 .contentSub { font-size: 13px; color: var(--text-muted); margin-top: 4px; }

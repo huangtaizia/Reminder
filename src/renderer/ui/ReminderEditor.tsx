@@ -280,9 +280,16 @@ export function ReminderEditor({ initial, onSaved }: { initial?: Reminder | null
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
                   <button onClick={() => setFixedHour(h => h >= 23 ? 0 : h + 1)}
                     style={{ background: 'none', border: 'none', color: '#ADC6FF', cursor: 'pointer', fontSize: 16, padding: '2px 12px', lineHeight: 1 }}>▲</button>
-                  <div style={{ fontSize: 28, fontWeight: 700, color: '#DAE2FD', minWidth: 52, textAlign: 'center', letterSpacing: 1 }}>
-                    {String(fixedHour).padStart(2, '0')}
-                  </div>
+                  <input
+                    type="number" min={0} max={23} value={fixedHour}
+                    onChange={e => setFixedHour(Math.max(0, Math.min(23, Number(e.target.value))))}
+                    style={{
+                      width: 52, background: 'transparent', border: 'none',
+                      color: '#DAE2FD', fontSize: 28, fontWeight: 700,
+                      textAlign: 'center', outline: 'none', fontFamily: 'inherit',
+                      letterSpacing: 1, cursor: 'text',
+                    }}
+                  />
                   <button onClick={() => setFixedHour(h => h <= 0 ? 23 : h - 1)}
                     style={{ background: 'none', border: 'none', color: '#ADC6FF', cursor: 'pointer', fontSize: 16, padding: '2px 12px', lineHeight: 1 }}>▼</button>
                 </div>
@@ -291,9 +298,16 @@ export function ReminderEditor({ initial, onSaved }: { initial?: Reminder | null
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
                   <button onClick={() => setFixedMinute(m => m >= 59 ? 0 : m + 1)}
                     style={{ background: 'none', border: 'none', color: '#ADC6FF', cursor: 'pointer', fontSize: 16, padding: '2px 12px', lineHeight: 1 }}>▲</button>
-                  <div style={{ fontSize: 28, fontWeight: 700, color: '#DAE2FD', minWidth: 52, textAlign: 'center', letterSpacing: 1 }}>
-                    {String(fixedMinute).padStart(2, '0')}
-                  </div>
+                  <input
+                    type="number" min={0} max={59} value={fixedMinute}
+                    onChange={e => setFixedMinute(Math.max(0, Math.min(59, Number(e.target.value))))}
+                    style={{
+                      width: 52, background: 'transparent', border: 'none',
+                      color: '#DAE2FD', fontSize: 28, fontWeight: 700,
+                      textAlign: 'center', outline: 'none', fontFamily: 'inherit',
+                      letterSpacing: 1, cursor: 'text',
+                    }}
+                  />
                   <button onClick={() => setFixedMinute(m => m <= 0 ? 59 : m - 1)}
                     style={{ background: 'none', border: 'none', color: '#ADC6FF', cursor: 'pointer', fontSize: 16, padding: '2px 12px', lineHeight: 1 }}>▼</button>
                 </div>
@@ -307,35 +321,43 @@ export function ReminderEditor({ initial, onSaved }: { initial?: Reminder | null
           {/* Interval */}
           {scheduleType === 'interval' && (
             <div>
-              <div style={{ fontSize: 14, color: '#C2C6D6', marginBottom: 8 }}>Tần suất lặp lại</div>
-              <div style={{ position: 'relative' }}>
-                <select value={intervalMin} onChange={e => setIntervalMin(Number(e.target.value))}
+              <div style={{ fontSize: 14, color: '#C2C6D6', marginBottom: 8 }}>Lặp lại mỗi (phút)</div>
+              {/* Input nhập thủ công */}
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                background: '#222A3D', border: '1px solid #424754',
+                borderRadius: 12, padding: '4px 8px 4px 4px',
+              }}>
+                <button onClick={() => setIntervalMin(v => Math.max(1, v - 1))}
+                  style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(173,198,255,0.08)', border: '1px solid rgba(173,198,255,0.15)', color: '#ADC6FF', fontSize: 18, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
+                <input
+                  type="number" min={1} max={1440} value={intervalMin}
+                  onChange={e => {
+                    const v = Number(e.target.value);
+                    if (!isNaN(v)) setIntervalMin(Math.max(1, Math.min(1440, v)));
+                  }}
                   style={{
-                    width: '100%', height: 48,
-                    background: '#222A3D',
-                    border: '1px solid #424754',
-                    borderRadius: 12,
-                    color: '#DAE2FD', fontSize: 14,
-                    outline: 'none', fontFamily: 'inherit',
-                    cursor: 'pointer', appearance: 'none',
-                    paddingLeft: 16, paddingRight: 40,
+                    flex: 1, background: 'transparent', border: 'none',
+                    color: '#DAE2FD', fontSize: 16, fontWeight: 600,
+                    textAlign: 'center', outline: 'none', fontFamily: 'inherit',
+                  }}
+                />
+                <button onClick={() => setIntervalMin(v => Math.min(1440, v + 1))}
+                  style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(173,198,255,0.08)', border: '1px solid rgba(173,198,255,0.15)', color: '#ADC6FF', fontSize: 18, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
+              </div>
+              {/* Quick picks */}
+              <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+                {[15, 30, 60, 120, 180, 240].map(v => (
+                  <div key={v} onClick={() => setIntervalMin(v)} style={{
+                    padding: '5px 10px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 600,
+                    background: intervalMin === v ? 'rgba(173,198,255,0.12)' : 'rgba(255,255,255,0.04)',
+                    border: intervalMin === v ? '1px solid rgba(173,198,255,0.4)' : '1px solid rgba(255,255,255,0.07)',
+                    color: intervalMin === v ? '#ADC6FF' : '#C2C6D6',
+                    transition: 'all 0.12s',
                   }}>
-                  <option value={15}  style={{ background: '#1a2236', color: '#DAE2FD' }}>Mỗi 15 phút</option>
-                  <option value={30}  style={{ background: '#1a2236', color: '#DAE2FD' }}>Mỗi 30 phút</option>
-                  <option value={60}  style={{ background: '#1a2236', color: '#DAE2FD' }}>Mỗi 1 giờ</option>
-                  <option value={120} style={{ background: '#1a2236', color: '#DAE2FD' }}>Mỗi 2 giờ</option>
-                  <option value={180} style={{ background: '#1a2236', color: '#DAE2FD' }}>Mỗi 3 giờ</option>
-                  <option value={240} style={{ background: '#1a2236', color: '#DAE2FD' }}>Mỗi 4 giờ</option>
-                </select>
-                {/* Chevron icon */}
-                <div style={{
-                  position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)',
-                  pointerEvents: 'none', color: '#ADC6FF',
-                }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M7 10l5 5 5-5z"/>
-                  </svg>
-                </div>
+                    {v < 60 ? `${v}p` : `${v/60}h`}
+                  </div>
+                ))}
               </div>
             </div>
           )}
