@@ -1,21 +1,10 @@
 import React from 'react';
 import type { Reminder } from '../../shared/types';
-import { ICONS } from './ReminderEditor';
-
-// Map emoji cũ → id mới (tương thích data cũ trước khi đổi sang SVG icon)
-const EMOJI_TO_ID: Record<string, string> = {
-  '💧': 'water', '🏃': 'run', '✉️': 'email', '☕': 'coffee',
-  '🧘': 'rest',  '⚡': 'charge', '👀': 'eyes', '🍎': 'food',
-  '🚲': 'bike',  '🌈': 'meditate', '🎮': 'stretch', '📁': 'folder',
-  '💉': 'water', '🎥': 'folder',
-};
+import { ICON_BY_ID, resolveIconId } from './reminderIcons';
 
 function renderIcon(iconValue: string, active: boolean): React.ReactNode {
-  const resolvedId = ICONS.find(i => i.id === iconValue)
-    ? iconValue
-    : (EMOJI_TO_ID[iconValue] ?? null);
-
-  const found = resolvedId ? ICONS.find(i => i.id === resolvedId) : null;
+  const resolvedId = resolveIconId(iconValue);
+  const found = resolvedId ? ICON_BY_ID.get(resolvedId) : null;
 
   if (!found) {
     // Emoji gốc hoặc fallback chuông
@@ -91,24 +80,134 @@ export function ReminderList({
 }) {
   const [items, setItems] = React.useState<Reminder[]>([]);
 
+  const applyReminders = React.useCallback((reminders: Reminder[]) => {
+    const sorted = [...reminders].sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
+    setItems(sorted);
+    onCountChange?.(sorted.length);
+  }, [onCountChange]);
+
   const refresh = React.useCallback(async () => {
     const s = await window.reminder.getState();
     const reminders = (s?.reminders ?? []) as Reminder[];
-    reminders.sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
-    setItems(reminders);
-    onCountChange?.(reminders.length);
-  }, [onCountChange]);
+    applyReminders(reminders);
+  }, [applyReminders]);
 
   React.useEffect(() => { refresh(); }, [refresh]);
 
-  const toggleEnabled = (id: string) => {
-    setItems(prev => {
-      const next = prev.map(x => x.id === id ? { ...x, enabled: !x.enabled } : x);
-      const updated = next.find(x => x.id === id);
-      if (updated) window.reminder.upsertReminder(updated as any).then(refresh);
-      return next;
+  const toggleEnabled = React.useCallback(async (id: string) => {
+    const current = items.find(x => x.id === id);
+    if (!current) return;
+    const updatedForIpc: Reminder = { ...current, enabled: !current.enabled };
+
+    // Optimistic update to keep UI responsive.
+    setItems(prev => prev.map(x => x.id === id ? updatedForIpc : x));
+
+    try {
+      const nextState = await window.reminder.upsertReminder(updatedForIpc as any);
+      applyReminders((nextState?.reminders ?? []) as Reminder[]);
+    } catch {
+      refresh();
+    }
+  }, [items, applyReminders, refresh]);
+
+  const deleteById = React.useCallback(async (id: string) => {
+    setItems(prev => prev.filter(x => x.id !== id));
+    try {
+      const nextState = await window.reminder.deleteReminder(id);
+      applyReminders((nextState?.reminders ?? []) as Reminder[]);
+    } catch {
+      refresh();
+    }
+  }, [applyReminders, refresh]);
+
+  const onEditStable = React.useCallback((r: Reminder) => onEdit?.(r), [onEdit]);
+
+  const onToggleStable = React.useCallback((id: string) => {
+    void toggleEnabled(id);
+  }, [toggleEnabled]);
+
+  const onDeleteStable = React.useCallback((id: string) => {
+    void deleteById(id);
+  }, [deleteById]);
+
+  const ReminderRow = React.useMemo(() => {
+    type RowProps = {
+      r: Reminder;
+      onEdit?: (r: Reminder) => void;
+      onToggle: (id: string) => void;
+      onDelete: (id: string) => void;
+    };
+
+    const Row = ({ r, onEdit, onToggle, onDelete }: RowProps) => {
+      const isDisabled = !r.enabled;
+      const iconBg = isDisabled ? 'rgba(255, 255, 255, 0.1)' : 'rgba(59,158,255,0.12)';
+
+      return (
+        <div
+          key={r.id}
+          className={'remRow' + (isDisabled ? ' disabled' : '')}
+          onClick={() => onEdit?.(r)}
+        >
+          {/* Left */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 24, flex: 1, minWidth: 0 }}>
+            <div className="remRowIcon" style={{ background: iconBg }}>
+              {renderIcon(r.config.icon, !isDisabled)}
+            </div>
+
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="remRowTitle">
+                <span>{r.config.message}</span>
+              </div>
+              <div className="remRowDesc">{descriptionLabel(r)}</div>
+              <div className={'remRowNext' + (isDisabled ? ' paused' : '')}>
+                {isDisabled ? <IconPaused /> : <IconClock />}
+                <span>{isDisabled ? 'PAUSED' : scheduleLabel(r)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Right */}
+          <div className="remRowActions" onClick={e => e.stopPropagation()}>
+            <div
+              className={'toggle' + (r.enabled ? ' on' : '')}
+              role="switch" aria-checked={r.enabled} tabIndex={0}
+              onClick={() => onToggle(r.id)}
+              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') onToggle(r.id); }}
+            >
+              <div className="toggleKnob" />
+            </div>
+
+            <div className="remRowDivider" />
+
+            <button className="iconBtn" title="Edit" onClick={() => onEdit?.(r)}>
+              <IconEdit />
+            </button>
+
+            <button className="iconBtn danger" title="Delete" onClick={() => onDelete(r.id)}>
+              <IconDelete />
+            </button>
+          </div>
+        </div>
+      );
+    };
+
+    return React.memo(Row, (a, b) => {
+      const ar = a.r; const br = b.r;
+      return (
+        ar.id === br.id &&
+        ar.enabled === br.enabled &&
+        ar.createdAt === br.createdAt &&
+        ar.config.icon === br.config.icon &&
+        ar.config.message === br.config.message &&
+        ar.config.displayMs === br.config.displayMs &&
+        ar.schedule.type === br.schedule.type &&
+        (ar.schedule.type === 'interval'
+          ? (br.schedule.type === 'interval' && ar.schedule.intervalMs === br.schedule.intervalMs)
+          : (br.schedule.type === 'fixedDaily' && ar.schedule.hour === br.schedule.hour && ar.schedule.minute === br.schedule.minute)
+        )
+      );
     });
-  };
+  }, []);
 
   if (items.length === 0) {
     return (
@@ -126,62 +225,15 @@ export function ReminderList({
 
   return (
     <div style={{ paddingTop: 0 }}>
-      {items.map(r => {
-        const isDisabled = !r.enabled;
-        // icon bg tinted theo accent blue (#3b9eff) vì không còn color per-reminder
-        const iconBg = isDisabled ? 'rgba(255, 255, 255, 0.1)' : 'rgba(59,158,255,0.12)';
-
-        return (
-          <div
-            key={r.id}
-            className={'remRow' + (isDisabled ? ' disabled' : '')}
-            onClick={() => onEdit?.(r)}
-          >
-            {/* Left */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 24, flex: 1, minWidth: 0 }}>
-              <div className="remRowIcon" style={{ background: iconBg }}>
-                {renderIcon(r.config.icon, !isDisabled)}
-              </div>
-
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div className="remRowTitle">
-                  <span>{r.config.message}</span>
-                </div>
-                <div className="remRowDesc">{descriptionLabel(r)}</div>
-                <div className={'remRowNext' + (isDisabled ? ' paused' : '')}>
-                  {isDisabled ? <IconPaused /> : <IconClock />}
-                  <span>{isDisabled ? 'PAUSED' : scheduleLabel(r)}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Right */}
-            <div className="remRowActions" onClick={e => e.stopPropagation()}>
-              <div
-                className={'toggle' + (r.enabled ? ' on' : '')}
-                role="switch" aria-checked={r.enabled} tabIndex={0}
-                onClick={() => toggleEnabled(r.id)}
-                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') toggleEnabled(r.id); }}
-              >
-                <div className="toggleKnob" />
-              </div>
-
-              <div className="remRowDivider" />
-
-              <button className="iconBtn" title="Edit" onClick={() => onEdit?.(r)}>
-                <IconEdit />
-              </button>
-
-              <button className="iconBtn danger" title="Delete" onClick={async () => {
-                await window.reminder.deleteReminder(r.id);
-                await refresh();
-              }}>
-                <IconDelete />
-              </button>
-            </div>
-          </div>
-        );
-      })}
+      {items.map(r => (
+        <ReminderRow
+          key={r.id}
+          r={r}
+          onEdit={onEditStable}
+          onToggle={onToggleStable}
+          onDelete={onDeleteStable}
+        />
+      ))}
       <div style={{ height: 100 }} />
     </div>
   );

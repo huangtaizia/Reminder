@@ -124,15 +124,17 @@ export function showReminderPopup(reminder: Reminder) {
 
   mainWin.on("blur", refocusMain)
 
-  mainWin.once("show", () => {
+  const startFocusLock = () => {
+    if (focusInterval) return
     mainWin.focus()
     focusInterval = setInterval(() => {
       if (mainWin.isDestroyed()) {
-        clearInterval(focusInterval!); return
+        clearInterval(focusInterval!)
+        return
       }
       if (!mainWin.isFocused()) mainWin.focus()
     }, 100)
-  })
+  }
 
   // Cleanup khi mainWin đóng
   mainWin.on("closed", () => {
@@ -161,8 +163,14 @@ export function showReminderPopup(reminder: Reminder) {
 
   mainWin.once("ready-to-show", () => {
     if (!mainWin.isDestroyed()) {
+      // Show blocker windows ngay tại thời điểm mainWin được phép show,
+      // tránh trường hợp click quá nhanh trước khi blocker sẵn sàng.
+      blockWins.forEach(w => {
+        if (!w.isDestroyed()) w.show()
+      })
+
       mainWin.show()
-      mainWin.focus()
+      startFocusLock()
     }
   })
 

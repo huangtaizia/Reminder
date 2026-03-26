@@ -1,8 +1,15 @@
 import React from 'react';
-import { ReminderList } from './ReminderList';
-import { ReminderEditor } from './ReminderEditor';
-import { Settings } from './Settings';
 import type { Reminder } from '../../shared/types';
+
+const ReminderList = React.lazy(() =>
+  import('./ReminderList').then(m => ({ default: m.ReminderList }))
+);
+const ReminderEditor = React.lazy(() =>
+  import('./ReminderEditor').then(m => ({ default: m.ReminderEditor }))
+);
+const Settings = React.lazy(() =>
+  import('./Settings').then(m => ({ default: m.Settings }))
+);
 
 type TabKey = 'list' | 'create' | 'settings';
 
@@ -314,10 +321,12 @@ export function App() {
                 </div>
               </div>
               <div className="remScroll">
-                <ReminderList
-                  onEdit={r => { setEditing(r); setTab('create'); }}
-                  onCountChange={setReminderCount}
-                />
+                <React.Suspense fallback={<div style={{ padding: 24, opacity: 0.7 }}>Loading...</div>}>
+                  <ReminderList
+                    onEdit={r => { setEditing(r); setTab('create'); }}
+                    onCountChange={setReminderCount}
+                  />
+                </React.Suspense>
               </div>
             </>
           )}
@@ -328,10 +337,12 @@ export function App() {
                 <div className="contentTitle">{editing ? 'Edit Reminder' : 'Create New'}</div>
                 <div className="contentSub">{editing ? 'Update your reminder' : 'Schedule a new reminder'}</div>
               </div>
-              <ReminderEditor
-                initial={editing}
-                onSaved={() => { setEditing(null); setTab('list'); }}
-              />
+              <React.Suspense fallback={<div style={{ padding: 24, opacity: 0.7 }}>Loading...</div>}>
+                <ReminderEditor
+                  initial={editing}
+                  onSaved={() => { setEditing(null); setTab('list'); }}
+                />
+              </React.Suspense>
             </>
           )}
 
@@ -342,7 +353,9 @@ export function App() {
                 <div className="contentSub">Customize your experience</div>
               </div>
               <div style={{ flex: 1, overflowY: 'auto' }}>
-                <Settings />
+                <React.Suspense fallback={<div style={{ padding: 24, opacity: 0.7 }}>Loading...</div>}>
+                  <Settings />
+                </React.Suspense>
               </div>
             </>
           )}

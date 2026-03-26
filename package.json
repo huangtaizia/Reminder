@@ -5,7 +5,7 @@
   "main": "dist-electron/electron/main.js",
   "scripts": {
     "dev": "concurrently -k \"tsc -p tsconfig.electron.json -w\" \"vite\" \"wait-on dist-electron/electron/main.js && electron .\"",
-    "build": "if exist dist-electron rmdir /s /q dist-electron && if exist dist rmdir /s /q dist && npx tsc -p tsconfig.electron.json && vite build && electron-builder --win portable",
+    "build": "node -e \"const fs=require('node:fs'); for (const d of ['dist-electron','dist']) fs.rmSync(d,{recursive:true,force:true});\" && npx tsc -p tsconfig.electron.json && vite build && electron-builder --win portable",
     "preview": "vite preview",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

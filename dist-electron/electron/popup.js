@@ -103,7 +103,9 @@ function showReminderPopup(reminder) {
     // Focus lock trên mainWin
     let focusInterval = null;
     mainWin.on("blur", refocusMain);
-    mainWin.once("show", () => {
+    const startFocusLock = () => {
+        if (focusInterval)
+            return;
         mainWin.focus();
         focusInterval = setInterval(() => {
             if (mainWin.isDestroyed()) {
@@ -113,7 +115,7 @@ function showReminderPopup(reminder) {
             if (!mainWin.isFocused())
                 mainWin.focus();
         }, 100);
-    });
+    };
     // Cleanup khi mainWin đóng
     mainWin.on("closed", () => {
         mainWin.off("blur", refocusMain);
@@ -143,8 +145,14 @@ function showReminderPopup(reminder) {
     });
     mainWin.once("ready-to-show", () => {
         if (!mainWin.isDestroyed()) {
+            // Show blocker windows ngay tại thời điểm mainWin được phép show,
+            // tránh trường hợp click quá nhanh trước khi blocker sẵn sàng.
+            blockWins.forEach(w => {
+                if (!w.isDestroyed())
+                    w.show();
+            });
             mainWin.show();
-            mainWin.focus();
+            startFocusLock();
         }
     });
     popups.push({ mainWin, blockWins, reminderId: reminder.id });

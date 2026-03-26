@@ -42,7 +42,9 @@ class ReminderScheduler {
     scheduleOne(reminder, masterEnabled) {
         if (!masterEnabled)
             return;
-        if (!reminder.enabled)
+        // Treat only explicit false as disabled.
+        // (Helps when persisted data is missing `enabled` field.)
+        if (reminder.enabled === false)
             return;
         const key = node_crypto_1.default.randomUUID();
         const scheduleNext = () => {
@@ -67,10 +69,13 @@ class ReminderScheduler {
     }
     computeDelay(reminder) {
         if (reminder.schedule.type === 'interval') {
-            return clampMs(reminder.schedule.intervalMs);
+            const ms = reminder.schedule.intervalMs;
+            if (!Number.isFinite(ms) || ms <= 0)
+                return 60_000;
+            return clampMs(ms);
         }
         if (reminder.schedule.type === 'fixedDaily') {
-            const ms = msUntilNextFixedDaily(reminder.schedule.hour, reminder.schedule.minute);
+            const ms = msUntilNextFixedDaily(Math.max(0, Math.min(23, reminder.schedule.hour)), Math.max(0, Math.min(59, reminder.schedule.minute)));
             return clampMs(ms);
         }
         return 60_000;

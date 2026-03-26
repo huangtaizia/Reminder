@@ -44,7 +44,8 @@ function createMainWindow() {
         minHeight: 840,
         resizable: true,
         icon: node_path_1.default.join(__dirname, '../../build/icons/icon.ico'),
-        // backgroundColor: '#07101d',
+        backgroundColor: '#0B1326',
+        show: false,
         webPreferences: {
             preload: node_path_1.default.join(__dirname, 'preload.js'),
             contextIsolation: true,
@@ -53,10 +54,10 @@ function createMainWindow() {
         titleBarStyle: 'hidden',
         titleBarOverlay: false,
     });
+    mainWindow.once('ready-to-show', () => {
+        mainWindow?.show();
+    });
     if (isDev) {
-        mainWindow.once("ready-to-show", () => {
-            mainWindow?.show();
-        });
         mainWindow.loadURL('http://127.0.0.1:5173/');
         mainWindow.webContents.openDevTools({ mode: 'detach' });
     }
@@ -70,6 +71,7 @@ function createTray() {
         ? node_path_1.default.join(process.resourcesPath, "tray.png")
         : node_path_1.default.join(process.cwd(), "public", "tray.png");
     let icon = electron_1.nativeImage.createFromPath(trayIconPath);
+    // Windows tray icon looks small at 20x20; bump up for better visibility.
     icon = icon.resize({ width: 20, height: 20 });
     if (icon.isEmpty()) {
         console.error("Tray icon failed to load");
