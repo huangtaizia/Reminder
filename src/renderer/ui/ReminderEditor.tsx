@@ -91,12 +91,109 @@ function NumberInput({
         onChange={e => { const v = Number(e.target.value); if (!isNaN(v)) onChange(Math.max(min, Math.min(max, v))); }}
         style={{
           flex: 1, textAlign: 'center', height: 32,
-          background: '#222A3D', border: '1px solid rgba(255,255,255,0.08)',
+          background: '#222A3D',
           borderRadius: 8, color: '#DAE2FD', fontSize: 14,
           outline: 'none', fontFamily: 'inherit',
         }}
       />
       <div style={btn} onClick={disabled ? undefined : () => onChange(Math.min(max, value + step))}>+</div>
+    </div>
+  );
+}
+
+/* ── Smart time input: xử lý logic nhập giờ/phút ── */
+function TimeInput({ value, max, onChange }: {
+  value: number; max: number; onChange: (v: number) => void;
+}) {
+  const [raw, setRaw] = React.useState('');
+  const [focused, setFocused] = React.useState(false);
+
+  const display = focused ? raw : String(value).padStart(2, '0');
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.target.value.replace(/[^0-9]/g, '');
+    if (input === '') {
+      setRaw('');
+      onChange(0);
+      return;
+    }
+    // Chỉ lấy tối đa 2 ký tự
+    const trimmed = input.slice(-2);
+    const num = parseInt(trimmed, 10);
+    // Clamp theo max
+    if (num <= max) {
+      setRaw(trimmed);
+      onChange(num);
+    } else {
+      // Nếu vượt max, lấy ký tự cuối
+      const last = parseInt(input.slice(-1), 10);
+      setRaw(String(last).padStart(2, '0'));
+      onChange(last);
+    }
+  };
+
+  const handleBlur = () => {
+    setFocused(false);
+    setRaw('');
+  };
+
+  const handleFocus = () => {
+    setFocused(true);
+    setRaw('');
+  };
+
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      value={display}
+      onChange={handleChange}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
+      maxLength={2}
+      style={{
+        width: 52, background: 'transparent', border: 'none',
+        color: '#DAE2FD', fontSize: 28, fontWeight: 700,
+        textAlign: 'center', outline: 'none', fontFamily: 'inherit',
+        letterSpacing: 1, cursor: 'text',
+      }}
+    />
+  );
+}
+
+function FixedTimePicker({ hour, minute, onHourChange, onMinuteChange }: {
+  hour: number; minute: number;
+  onHourChange: (v: number) => void; onMinuteChange: (v: number) => void;
+}) {
+  const btnStyle: React.CSSProperties = {
+    background: 'none', border: 'none', color: '#ADC6FF',
+    cursor: 'pointer', fontSize: 16, padding: '2px 12px', lineHeight: 1,
+  };
+  return (
+    <div>
+      <div style={{ fontSize: 14, color: '#C2C6D6', marginBottom: 8 }}>Thời gian bắt đầu</div>
+      <div style={{
+        background: '#222A3D', borderRadius: 12, padding: '10px 16px',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0,
+        border: '1px solid #424754',
+      }}>
+        {/* Giờ */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+          <button style={btnStyle} onClick={() => onHourChange(hour >= 23 ? 0 : hour + 1)}>▲</button>
+          <TimeInput value={hour} max={23} onChange={onHourChange} />
+          <button style={btnStyle} onClick={() => onHourChange(hour <= 0 ? 23 : hour - 1)}>▼</button>
+        </div>
+        <div style={{ fontSize: 28, fontWeight: 700, color: 'rgba(173,198,255,0.4)', padding: '0 4px', userSelect: 'none' }}>:</div>
+        {/* Phút */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+          <button style={btnStyle} onClick={() => onMinuteChange(minute >= 59 ? 0 : minute + 1)}>▲</button>
+          <TimeInput value={minute} max={59} onChange={onMinuteChange} />
+          <button style={btnStyle} onClick={() => onMinuteChange(minute <= 0 ? 59 : minute - 1)}>▼</button>
+        </div>
+      </div>
+      <div style={{ fontSize: 12, color: 'rgba(173,198,255,0.35)', marginTop: 6, textAlign: 'center' }}>
+        Nhắc nhở mỗi ngày lúc {String(hour).padStart(2,'0')}:{String(minute).padStart(2,'0')}
+      </div>
     </div>
   );
 }
@@ -160,7 +257,7 @@ export function ReminderEditor({ initial, onSaved }: { initial?: Reminder | null
     });
   };
 
-  const panel: React.CSSProperties = { background: '#131B2E', borderRadius: 16, padding: 24 };
+  const panel: React.CSSProperties = { background: 'var(--sidebar-bg)', borderRadius: 16, padding: 24 };
   const sectionLabel: React.CSSProperties = {
     fontSize: 14, fontWeight: 600, letterSpacing: '0.35px',
     textTransform: 'uppercase', color: '#ADC6FF', marginBottom: 16,
@@ -173,7 +270,7 @@ export function ReminderEditor({ initial, onSaved }: { initial?: Reminder | null
       <div style={{
         flex: 1, overflowY: 'auto', minWidth: 0,
         padding: '28px 24px 28px 32px',
-        borderRight: '1px solid rgba(255,255,255,0.06)',
+        // borderRight: '1px solid rgba(255,255,255,0.06)',
         display: 'flex', flexDirection: 'column', gap: 24,
       }}>
 
@@ -183,7 +280,7 @@ export function ReminderEditor({ initial, onSaved }: { initial?: Reminder | null
           <textarea
             style={{
               width: '100%', minHeight: 160, boxSizing: 'border-box',
-              background: '#222A3D', border: 'none', borderRadius: 12,
+              background: '#151B2B', border: 'none', borderRadius: 12,
               padding: '16px', color: '#DAE2FD', fontSize: 16, lineHeight: '24px',
               resize: 'none', outline: 'none', fontFamily: 'inherit',
             }}
@@ -269,53 +366,10 @@ export function ReminderEditor({ initial, onSaved }: { initial?: Reminder | null
 
           {/* Fixed time */}
           {scheduleType === 'fixed' && (
-            <div>
-              <div style={{ fontSize: 14, color: '#C2C6D6', marginBottom: 8 }}>Thời gian bắt đầu</div>
-              <div style={{
-                background: '#222A3D', borderRadius: 12, padding: '10px 16px',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0,
-                border: '1px solid #424754',
-              }}>
-                {/* Giờ */}
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                  <button onClick={() => setFixedHour(h => h >= 23 ? 0 : h + 1)}
-                    style={{ background: 'none', border: 'none', color: '#ADC6FF', cursor: 'pointer', fontSize: 16, padding: '2px 12px', lineHeight: 1 }}>▲</button>
-                  <input
-                    type="number" min={0} max={23} value={fixedHour}
-                    onChange={e => setFixedHour(Math.max(0, Math.min(23, Number(e.target.value))))}
-                    style={{
-                      width: 52, background: 'transparent', border: 'none',
-                      color: '#DAE2FD', fontSize: 28, fontWeight: 700,
-                      textAlign: 'center', outline: 'none', fontFamily: 'inherit',
-                      letterSpacing: 1, cursor: 'text',
-                    }}
-                  />
-                  <button onClick={() => setFixedHour(h => h <= 0 ? 23 : h - 1)}
-                    style={{ background: 'none', border: 'none', color: '#ADC6FF', cursor: 'pointer', fontSize: 16, padding: '2px 12px', lineHeight: 1 }}>▼</button>
-                </div>
-                <div style={{ fontSize: 28, fontWeight: 700, color: 'rgba(173,198,255,0.4)', padding: '0 4px', userSelect: 'none' }}>:</div>
-                {/* Phút */}
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                  <button onClick={() => setFixedMinute(m => m >= 59 ? 0 : m + 1)}
-                    style={{ background: 'none', border: 'none', color: '#ADC6FF', cursor: 'pointer', fontSize: 16, padding: '2px 12px', lineHeight: 1 }}>▲</button>
-                  <input
-                    type="number" min={0} max={59} value={fixedMinute}
-                    onChange={e => setFixedMinute(Math.max(0, Math.min(59, Number(e.target.value))))}
-                    style={{
-                      width: 52, background: 'transparent', border: 'none',
-                      color: '#DAE2FD', fontSize: 28, fontWeight: 700,
-                      textAlign: 'center', outline: 'none', fontFamily: 'inherit',
-                      letterSpacing: 1, cursor: 'text',
-                    }}
-                  />
-                  <button onClick={() => setFixedMinute(m => m <= 0 ? 59 : m - 1)}
-                    style={{ background: 'none', border: 'none', color: '#ADC6FF', cursor: 'pointer', fontSize: 16, padding: '2px 12px', lineHeight: 1 }}>▼</button>
-                </div>
-              </div>
-              <div style={{ fontSize: 12, color: 'rgba(173,198,255,0.35)', marginTop: 6, textAlign: 'center' }}>
-                Nhắc nhở mỗi ngày lúc {String(fixedHour).padStart(2,'0')}:{String(fixedMinute).padStart(2,'0')}
-              </div>
-            </div>
+            <FixedTimePicker
+              hour={fixedHour} minute={fixedMinute}
+              onHourChange={setFixedHour} onMinuteChange={setFixedMinute}
+            />
           )}
 
           {/* Interval */}
@@ -391,7 +445,7 @@ export function ReminderEditor({ initial, onSaved }: { initial?: Reminder | null
           {/* Buttons */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <button className="btn" onClick={handlePreview} style={{ width: '100%', justifyContent: 'center', gap: 8 }}>
-              <svg width="15" height="10" viewBox="0 0 20 14" fill="currentColor">
+              <svg width="12" height="12" viewBox="0 0 20 14" fill="currentColor">
                 <path d="M10 0C5.45 0 1.57 2.93 0 7C1.57 11.07 5.45 14 10 14C14.55 14 18.43 11.07 20 7C18.43 2.93 14.55 0 10 0ZM10 11.5C7.52 11.5 5.5 9.48 5.5 7C5.5 4.52 7.52 2.5 10 2.5C12.48 2.5 14.5 4.52 14.5 7C14.5 9.48 12.48 11.5 10 11.5ZM10 4.5C8.62 4.5 7.5 5.62 7.5 7C7.5 8.38 8.62 9.5 10 9.5C11.38 9.5 12.5 8.38 12.5 7C12.5 5.62 11.38 4.5 10 4.5Z"/>
               </svg>
               Xem trước
