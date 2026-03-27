@@ -87,10 +87,22 @@ function showReminderPopup(reminder) {
     });
     mainWin.setIgnoreMouseEvents(false);
     mainWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-    mainWin.setAlwaysOnTop(true, "screen-saver", 1);
+    mainWin.setAlwaysOnTop(true, "screen-saver", process.platform === "win32" ? 2 : 1);
+    const reclaimMainFocus = () => {
+        if (mainWin.isDestroyed())
+            return;
+        mainWin.moveTop();
+        if (process.platform === "win32")
+            electron_1.app.focus();
+        mainWin.focus();
+        mainWin.webContents.focus();
+    };
     const refocusMain = () => {
-        if (!mainWin.isDestroyed())
-            mainWin.focus();
+        reclaimMainFocus();
+        // Windows 10 can occasionally deny immediate focus steal.
+        // Retry shortly to tighten focus lock after rapid user interactions.
+        setTimeout(reclaimMainFocus, 30);
+        setTimeout(reclaimMainFocus, 120);
     };
     const closeAll = () => {
         if (!mainWin.isDestroyed())
@@ -100,29 +112,67 @@ function showReminderPopup(reminder) {
     const blockWins = allDisplays
         .filter(d => d.id !== primary.id)
         .map(d => createBlockerWindow(d.bounds, closeAll, refocusMain));
+    const isPopupWindow = (w) => w === mainWin || blockWins.includes(w);
+    // While popup is active, disable all non-popup app windows
+    // so click cannot move interaction away from reminder flow.
+    const disabledWindows = [];
+    let nonPopupWindowsLocked = false;
+    const disableNonPopupWindows = () => {
+        if (nonPopupWindowsLocked)
+            return;
+        nonPopupWindowsLocked = true;
+        for (const w of electron_1.BrowserWindow.getAllWindows()) {
+            if (w.isDestroyed() || isPopupWindow(w))
+                continue;
+            const wasEnabled = w.isEnabled();
+            disabledWindows.push({ win: w, wasEnabled });
+            if (wasEnabled)
+                w.setEnabled(false);
+        }
+    };
+    const restoreNonPopupWindows = () => {
+        if (!nonPopupWindowsLocked)
+            return;
+        for (const entry of disabledWindows) {
+            if (entry.win.isDestroyed())
+                continue;
+            entry.win.setEnabled(entry.wasEnabled);
+        }
+        disabledWindows.length = 0;
+        nonPopupWindowsLocked = false;
+    };
     // Focus lock trên mainWin
     let focusInterval = null;
+    const appFocusGuard = (_e, focusedWin) => {
+        if (mainWin.isDestroyed())
+            return;
+        if (!isPopupWindow(focusedWin))
+            refocusMain();
+    };
     mainWin.on("blur", refocusMain);
+    electron_1.app.on("browser-window-focus", appFocusGuard);
     const startFocusLock = () => {
         if (focusInterval)
             return;
-        mainWin.focus();
+        reclaimMainFocus();
         focusInterval = setInterval(() => {
             if (mainWin.isDestroyed()) {
                 clearInterval(focusInterval);
                 return;
             }
             if (!mainWin.isFocused())
-                mainWin.focus();
+                reclaimMainFocus();
         }, 100);
     };
     // Cleanup khi mainWin đóng
     mainWin.on("closed", () => {
         mainWin.off("blur", refocusMain);
+        electron_1.app.off("browser-window-focus", appFocusGuard);
         if (focusInterval) {
             clearInterval(focusInterval);
             focusInterval = null;
         }
+        restoreNonPopupWindows();
         // Bỏ close listener trên blockWins trước khi đóng
         // để tránh loop closeAll → closed → closeAll
         blockWins.forEach(w => {
@@ -132,6 +182,7 @@ function showReminderPopup(reminder) {
         });
         popups = popups.filter(p => p.mainWin !== mainWin);
     });
+    disableNonPopupWindows();
     mainWin.loadFile(popupPath, {
         query: {
             cfg: JSON.stringify({
@@ -148,8 +199,10 @@ function showReminderPopup(reminder) {
             // Show blocker windows ngay tại thời điểm mainWin được phép show,
             // tránh trường hợp click quá nhanh trước khi blocker sẵn sàng.
             blockWins.forEach(w => {
-                if (!w.isDestroyed())
+                if (!w.isDestroyed()) {
                     w.show();
+                    w.moveTop();
+                }
             });
             mainWin.show();
             startFocusLock();

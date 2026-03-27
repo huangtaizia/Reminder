@@ -9,6 +9,11 @@ type PopupEntry = {
 }
 let popups: PopupEntry[] = []
 
+type WindowEnableState = {
+  win: BrowserWindow
+  wasEnabled: boolean
+}
+
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n))
 }
@@ -104,10 +109,22 @@ export function showReminderPopup(reminder: Reminder) {
 
   mainWin.setIgnoreMouseEvents(false)
   mainWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
-  mainWin.setAlwaysOnTop(true, "screen-saver", 1)
+  mainWin.setAlwaysOnTop(true, "screen-saver", process.platform === "win32" ? 2 : 1)
+
+  const reclaimMainFocus = () => {
+    if (mainWin.isDestroyed()) return
+    mainWin.moveTop()
+    if (process.platform === "win32") app.focus()
+    mainWin.focus()
+    mainWin.webContents.focus()
+  }
 
   const refocusMain = () => {
-    if (!mainWin.isDestroyed()) mainWin.focus()
+    reclaimMainFocus()
+    // Windows 10 can occasionally deny immediate focus steal.
+    // Retry shortly to tighten focus lock after rapid user interactions.
+    setTimeout(reclaimMainFocus, 30)
+    setTimeout(reclaimMainFocus, 120)
   }
 
   const closeAll = () => {
@@ -119,27 +136,61 @@ export function showReminderPopup(reminder: Reminder) {
     .filter(d => d.id !== primary.id)
     .map(d => createBlockerWindow(d.bounds, closeAll, refocusMain))
 
+  const isPopupWindow = (w: BrowserWindow) => w === mainWin || blockWins.includes(w)
+
+  // While popup is active, disable all non-popup app windows
+  // so click cannot move interaction away from reminder flow.
+  const disabledWindows: WindowEnableState[] = []
+  let nonPopupWindowsLocked = false
+  const disableNonPopupWindows = () => {
+    if (nonPopupWindowsLocked) return
+    nonPopupWindowsLocked = true
+    for (const w of BrowserWindow.getAllWindows()) {
+      if (w.isDestroyed() || isPopupWindow(w)) continue
+      const wasEnabled = w.isEnabled()
+      disabledWindows.push({ win: w, wasEnabled })
+      if (wasEnabled) w.setEnabled(false)
+    }
+  }
+
+  const restoreNonPopupWindows = () => {
+    if (!nonPopupWindowsLocked) return
+    for (const entry of disabledWindows) {
+      if (entry.win.isDestroyed()) continue
+      entry.win.setEnabled(entry.wasEnabled)
+    }
+    disabledWindows.length = 0
+    nonPopupWindowsLocked = false
+  }
+
   // Focus lock trên mainWin
   let focusInterval: ReturnType<typeof setInterval> | null = null
+  const appFocusGuard = (_e: Electron.Event, focusedWin: BrowserWindow) => {
+    if (mainWin.isDestroyed()) return
+    if (!isPopupWindow(focusedWin)) refocusMain()
+  }
 
   mainWin.on("blur", refocusMain)
+  app.on("browser-window-focus", appFocusGuard)
 
   const startFocusLock = () => {
     if (focusInterval) return
-    mainWin.focus()
+    reclaimMainFocus()
     focusInterval = setInterval(() => {
       if (mainWin.isDestroyed()) {
         clearInterval(focusInterval!)
         return
       }
-      if (!mainWin.isFocused()) mainWin.focus()
+      if (!mainWin.isFocused()) reclaimMainFocus()
     }, 100)
   }
 
   // Cleanup khi mainWin đóng
   mainWin.on("closed", () => {
     mainWin.off("blur", refocusMain)
+    app.off("browser-window-focus", appFocusGuard)
     if (focusInterval) { clearInterval(focusInterval); focusInterval = null }
+    restoreNonPopupWindows()
     // Bỏ close listener trên blockWins trước khi đóng
     // để tránh loop closeAll → closed → closeAll
     blockWins.forEach(w => {
@@ -148,6 +199,8 @@ export function showReminderPopup(reminder: Reminder) {
     })
     popups = popups.filter(p => p.mainWin !== mainWin)
   })
+
+  disableNonPopupWindows()
 
   mainWin.loadFile(popupPath, {
     query: {
@@ -166,7 +219,10 @@ export function showReminderPopup(reminder: Reminder) {
       // Show blocker windows ngay tại thời điểm mainWin được phép show,
       // tránh trường hợp click quá nhanh trước khi blocker sẵn sàng.
       blockWins.forEach(w => {
-        if (!w.isDestroyed()) w.show()
+        if (!w.isDestroyed()) {
+          w.show()
+          w.moveTop()
+        }
       })
 
       mainWin.show()
