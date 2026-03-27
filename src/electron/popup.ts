@@ -69,6 +69,13 @@ function createBlockerWindow(
 
   win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html))
 
+  // Handle Esc at main-process layer for better reliability on Windows.
+  win.webContents.on("before-input-event", (_event, input) => {
+    if ((input.key === "Escape" || input.code === "Escape") && input.type === "keyDown") {
+      onEsc()
+    }
+  })
+
   // "close" event = user bấm ESC trên màn hình phụ → đóng toàn bộ
   win.on("close", onEsc)
 
@@ -176,6 +183,10 @@ export function showReminderPopup(reminder: Reminder) {
   const startFocusLock = () => {
     if (focusInterval) return
     reclaimMainFocus()
+    setTimeout(reclaimMainFocus, 10)
+    setTimeout(reclaimMainFocus, 60)
+    setTimeout(reclaimMainFocus, 180)
+    setTimeout(reclaimMainFocus, 350)
     focusInterval = setInterval(() => {
       if (mainWin.isDestroyed()) {
         clearInterval(focusInterval!)
@@ -227,6 +238,13 @@ export function showReminderPopup(reminder: Reminder) {
 
       mainWin.show()
       startFocusLock()
+    }
+  })
+
+  // Handle Esc at main-process layer in addition to renderer key listener.
+  mainWin.webContents.on("before-input-event", (_event, input) => {
+    if ((input.key === "Escape" || input.code === "Escape") && input.type === "keyDown") {
+      closeAll()
     }
   })
 
