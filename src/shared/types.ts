@@ -2,7 +2,14 @@ export type Id = string;
 
 export type ReminderSchedule =
   | { type: 'interval'; intervalMs: number }
-  | { type: 'fixedDaily'; hour: number; minute: number };
+  | {
+      type: 'fixedDaily';
+      hour: number;
+      minute: number;
+      repeat?: 'daily' | 'once';
+      // Used when repeat = "once" to persist one-shot behavior across restarts.
+      onceAt?: number;
+    };
 
 export type ReminderConfig = {
   icon: string;

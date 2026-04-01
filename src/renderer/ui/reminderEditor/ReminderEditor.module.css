@@ -1,0 +1,446 @@
+/* Layout */
+.root {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+.leftCol {
+  flex: 1;
+  overflow-y: auto;
+  min-width: 0;
+  padding: 28px 24px 28px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.rightCol {
+  width: 300px;
+  flex-shrink: 0;
+  overflow: visible;
+  padding: 18px 18px 16px 16px;
+  display: flex;
+  flex-direction: column;
+}
+.panel {
+  background: var(--cfg-panel-bg);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+.rightPanel {
+  background: var(--cfg-panel-bg);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+.sectionLabel {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.35px;
+  text-transform: uppercase;
+  color: #adc6ff;
+  margin-bottom: 16px;
+}
+.sectionLabelTight {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.35px;
+  text-transform: uppercase;
+  color: #adc6ff;
+  margin-bottom: 20px;
+}
+.fieldLabel {
+  font-size: 14px;
+  color: #c2c6d6;
+  margin-bottom: 10px;
+}
+.scrollArea {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: visible;
+  padding-left: 8px;
+  padding-right: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+/* Message */
+.messageTextarea {
+  width: 100%;
+  min-height: 160px;
+  box-sizing: border-box;
+  background: #161c30c5;
+  border: none;
+  border-radius: 12px;
+  padding: 16px;
+  color: var(--text);
+  font-size: 16px;
+  line-height: 24px;
+  resize: none;
+  outline: none;
+  font-family: inherit;
+}
+.messageTextarea:focus {
+  box-shadow: 0 0 0 1px rgba(59, 158, 255, 0.45);
+}
+
+/* Icon grid */
+.iconGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  gap: 8px;
+}
+.iconGridEditor {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 6px;
+}
+.iconChip {
+  aspect-ratio: 1;
+  border-radius: 10px;
+  background: var(--rem-icon-bg);
+  border: 1.5px solid var(--rem-icon-border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 4px;
+  font-size: 20px;
+  cursor: pointer;
+  transition: background var(--transition), border-color var(--transition);
+}
+.iconChip:hover {
+  background: var(--rem-icon-bg-hover);
+}
+.iconChipActive {
+  background: var(--rem-icon-active-bg);
+  border-color: var(--rem-icon-active-border);
+}
+.iconChipSvg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-sub);
+}
+.iconChipActive .iconChipSvg {
+  color: var(--accent);
+}
+.iconChipText {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  text-transform: uppercase;
+  text-align: center;
+  line-height: 1.3;
+  user-select: none;
+  color: var(--text-sub);
+}
+.iconChipActive .iconChipText {
+  color: var(--accent);
+}
+
+/* Custom dropdown */
+.dropdownRoot {
+  position: relative;
+}
+.dropdownTrigger {
+  width: 100%;
+  height: 44px;
+  border-radius: 8px;
+  border: none;
+  background: var(--cfg-field-bg);
+  color: #dae2fd;
+  font-size: 14px;
+  font-family: inherit;
+  padding: 0 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.dropdownMenu {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 30;
+  border-radius: 8px;
+  border: none;
+  background: var(--cfg-dropdown-bg);
+  padding: 6px;
+  opacity: 0;
+  transform: translateY(-6px);
+  transform-origin: top;
+  transition: opacity 130ms ease, transform 130ms ease;
+  pointer-events: none;
+}
+.dropdownMenuOpen {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+.dropdownOption {
+  width: 100%;
+  height: 34px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: #c2c6d6;
+  text-align: left;
+  padding: 0 10px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.dropdownOptionActive {
+  background: rgba(173, 198, 255, 0.14);
+  color: #adc6ff;
+}
+
+/* Time input & fixed picker */
+.timeInput {
+  width: 44px;
+  background: transparent;
+  border: none;
+  color: #dae2fd;
+  font-size: 30px;
+  font-weight: 700;
+  text-align: center;
+  outline: none;
+  font-family: inherit;
+  letter-spacing: 0.5px;
+  cursor: text;
+  line-height: 1;
+}
+.timeArrowBtn {
+  width: 28px;
+  height: 20px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: #adc6ff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  opacity: 0.9;
+  transition: background 120ms ease, color 120ms ease, opacity 120ms ease;
+}
+.timeArrowBtn:hover {
+  background: rgba(173, 198, 255, 0.14);
+  color: #c3d7ff;
+  opacity: 1;
+}
+.fixedPickerLabel {
+  font-size: 14px;
+  color: #c2c6d6;
+  margin-bottom: 8px;
+}
+.fixedPickerRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 238px;
+  margin: 0 auto;
+}
+.fixedPickerCol {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.timeBox {
+  width: 84px;
+  height: 78px;
+  border-radius: 18px;
+  background: var(--cfg-time-box-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+}
+.timeColon {
+  font-size: 34px;
+  font-weight: 700;
+  color: rgba(173, 198, 255, 0.6);
+  padding: 0 2px;
+  user-select: none;
+  line-height: 1;
+}
+.fixedPickerHint {
+  font-size: 12px;
+  color: rgba(173, 198, 255, 0.35);
+  margin-top: 5px;
+  text-align: center;
+}
+.fixedBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* Interval */
+.intervalLabel {
+  font-size: 14px;
+  color: #c2c6d6;
+  margin-bottom: 8px;
+}
+.intervalRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #1b2949;
+  border: 1px solid #424754;
+  border-radius: 10px;
+  padding: 4px 8px 4px 4px;
+}
+.intervalStepBtn {
+  width: 34px;
+  height: 32px;
+  padding: 0;
+  border-radius: 8px;
+  background: rgba(173, 198, 255, 0.08);
+  border: 1px solid rgba(173, 198, 255, 0.15);
+  color: #adc6ff;
+  font-size: 18px;
+  line-height: 2;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* transform: translateY(-1px); */
+}
+.intervalInput {
+  flex: 1;
+  height: 36px;
+  line-height: 36px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: #dae2fd;
+  font-size: 16px;
+  font-weight: 600;
+  text-align: center;
+  outline: none;
+  font-family: inherit;
+}
+.intervalChips {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+  width: 100%;
+}
+.intervalChip {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 4px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  color: #c2c6d6;
+}
+.intervalChipActive {
+  background: rgba(173, 198, 255, 0.12);
+  border-color: rgba(173, 198, 255, 0.4);
+  color: #adc6ff;
+}
+
+/* Duration slider */
+.durationBlock {
+  padding-top: 2px;
+}
+.durationHeader {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.durationLabel {
+  font-size: 14px;
+  color: #c2c6d6;
+}
+.durationValue {
+  font-size: 14px;
+  font-weight: 700;
+  color: #adc6ff;
+}
+.sliderTrack {
+  position: relative;
+  height: 4px;
+  border-radius: 12px;
+  background: #2d3449;
+}
+.sliderFill {
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  background: #adc6ff;
+}
+.sliderThumb {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #abc8ff;
+}
+.sliderInput {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  opacity: 0;
+  cursor: pointer;
+  margin: 0;
+}
+.durationTicks {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 12px;
+}
+.durationTick {
+  font-size: 10px;
+  color: rgba(194, 198, 214, 0.45);
+  letter-spacing: -0.2px;
+}
+
+/* Footer buttons */
+.footer {
+  padding-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.footerBtn {
+  width: 100%;
+  justify-content: center;
+  gap: 7px;
+  height: 46px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+.footerBtnPreview {
+  font-weight: 600;
+}
+.footerBtnSave {
+  font-weight: 700;
+}
+.btnIcon {
+  flex-shrink: 0;
+  display: block;
+  margin-top: 2px;
+}

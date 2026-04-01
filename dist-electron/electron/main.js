@@ -81,6 +81,9 @@ function createTray() {
         {
             label: "Mở Reminder",
             click: () => {
+                // When reminder popup is active, keep focus locked on the popup.
+                if ((0, popup_1.isReminderPopupActive)())
+                    return;
                 if (!mainWindow || mainWindow.isDestroyed()) {
                     createMainWindow();
                     return;
@@ -98,6 +101,8 @@ function createTray() {
     tray.setToolTip("Reminder");
     tray.setContextMenu(ctx);
     tray.on("double-click", () => {
+        if ((0, popup_1.isReminderPopupActive)())
+            return;
         if (!mainWindow || mainWindow.isDestroyed()) {
             createMainWindow();
             return;

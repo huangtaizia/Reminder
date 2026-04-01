@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import { registerIpc } from './ipc';
 import { ReminderScheduler } from './scheduler';
 import { readState, setSettings } from './store';
-import { showReminderPopup } from './popup';
+import { isReminderPopupActive, showReminderPopup } from './popup';
 import { setAutostartEnabled } from './autostart';
 
 const dataDir = path.join(app.getPath('appData'), 'Reminder')
@@ -90,6 +90,8 @@ function createTray() {
     {
       label: "Mở Reminder",
       click: () => {
+        // When reminder popup is active, keep focus locked on the popup.
+        if (isReminderPopupActive()) return;
         if (!mainWindow || mainWindow.isDestroyed()) {
           createMainWindow();
           return;
@@ -109,6 +111,7 @@ function createTray() {
   tray.setContextMenu(ctx);
 
   tray.on("double-click", () => {
+    if (isReminderPopupActive()) return;
     if (!mainWindow || mainWindow.isDestroyed()) {
       createMainWindow();
       return;

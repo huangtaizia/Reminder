@@ -73,7 +73,8 @@ function registerIpc(opts) {
                 displayMs: input.displayMs,
             },
         };
-        (0, popup_1.showReminderPopup)(reminder);
+        // showReminderPopup(reminder);
+        await (0, popup_1.previewReminder)(reminder);
         return true;
     });
 }

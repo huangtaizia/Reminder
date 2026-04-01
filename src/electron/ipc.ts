@@ -3,7 +3,7 @@ import crypto from 'node:crypto';
 import { readState, writeState, upsertReminder, deleteReminder, setSettings } from './store';
 import type { PersistedState, Reminder } from '../shared/types';
 import type { ReminderScheduler } from './scheduler';
-import { showReminderPopup } from './popup';
+import { showReminderPopup, previewReminder } from './popup';
 
 type SchedulerApi = Pick<ReminderScheduler, 'rescheduleAll'>;
 
@@ -90,7 +90,8 @@ export function registerIpc(opts?: { scheduler?: SchedulerApi; onSettingsChanged
           displayMs: input.displayMs,
         },
       };
-      showReminderPopup(reminder);
+      // showReminderPopup(reminder);
+      await previewReminder(reminder);
       return true;
     },
   );

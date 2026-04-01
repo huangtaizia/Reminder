@@ -4,31 +4,72 @@ import type { Reminder } from "../shared/types"
 
 type PopupEntry = {
   mainWin: BrowserWindow
-  blockWins: BrowserWindow[]
   reminderId: string
 }
+
+// Stack toàn cục — popup mới nhất ở cuối
 let popups: PopupEntry[] = []
 
-type WindowEnableState = {
-  win: BrowserWindow
-  wasEnabled: boolean
-}
+// Shared dim overlay (tạo 1 lần, dùng chung cho toàn bộ stack) — chỉ màn hình chính
+let dimWins: BrowserWindow[] = []
+
+// Fullscreen click-capture trên màn hình phụ (không dim, chỉ chặn click ra app khác)
+let blockerWins: BrowserWindow[] = []
+
+let focusGuardsEnabled = false
+let previewQueue: Promise<void> = Promise.resolve()
+let focusReclaimSeq = 0
+let sustainedReclaimTimer: NodeJS.Timeout | null = null
+
+// Store window ids we forced ignore mouse while popup stack active.
+const ignoredMouseWinIds = new Set<number>()
+
+
 
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n))
 }
 
-// Tạo blocker window trên màn hình phụ
-// - Block click (setIgnoreMouseEvents false)
-// - focusable: true để nhận ESC
-// - Khi focus → redirect về mainWin
-// - Khi ESC → đóng mainWin
-function createBlockerWindow(
-  bounds: Electron.Rectangle,
-  onEsc: () => void,
-  refocusMain: () => void
-): BrowserWindow {
-  const win = new BrowserWindow({
+// Kiểm tra window có thuộc bất kỳ popup nào không
+function isAnyPopupWindow(w: BrowserWindow): boolean {
+  return popups.some(p => p.mainWin === w) || dimWins.includes(w) || blockerWins.includes(w)
+}
+
+// Popup active nhất (trên cùng stack) — là popup cần giữ focus
+function topPopup(): PopupEntry | null {
+  return popups.length > 0 ? popups[popups.length - 1] : null
+}
+
+export function isReminderPopupActive(): boolean {
+  return popups.length > 0
+}
+
+function syncMouseIgnore() {
+  if (popups.length === 0) {
+    for (const id of ignoredMouseWinIds) {
+      const w = BrowserWindow.fromId(id)
+      if (w && !w.isDestroyed()) w.setIgnoreMouseEvents(false)
+    }
+    ignoredMouseWinIds.clear()
+    return
+  }
+
+  for (const w of BrowserWindow.getAllWindows()) {
+    if (w.isDestroyed() || isAnyPopupWindow(w)) continue
+    if (ignoredMouseWinIds.has(w.id)) continue
+    try {
+      w.setIgnoreMouseEvents(true)
+      ignoredMouseWinIds.add(w.id)
+    } catch {
+      // ignore
+    }
+  }
+}
+
+function ensureDimWins() {
+  if (dimWins.length > 0) return
+  const bounds = screen.getPrimaryDisplay().bounds
+  const dimWin = new BrowserWindow({
     width: bounds.width,
     height: bounds.height,
     x: bounds.x,
@@ -38,64 +79,164 @@ function createBlockerWindow(
     resizable: false,
     movable: false,
     skipTaskbar: true,
-    focusable: true,
+    focusable: false,
     show: false,
-    webPreferences: {
-      contextIsolation: false,
-      nodeIntegration: false,
+    webPreferences: { contextIsolation: false },
+  })
+
+  dimWin.setIgnoreMouseEvents(false)
+  dimWin.setAlwaysOnTop(true, "screen-saver", 1)
+  dimWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
+
+  const dimPath = app.isPackaged
+    ? path.join(process.resourcesPath, "popup-dim.html")
+    : path.join(process.cwd(), "public", "popup-dim.html")
+  dimWin.loadFile(dimPath)
+  dimWin.once("ready-to-show", () => {
+    if (!dimWin.isDestroyed()) dimWin.showInactive()
+  })
+  dimWins.push(dimWin)
+}
+
+function destroyDimWins() {
+  for (const w of dimWins) {
+    if (!w.isDestroyed()) w.close()
+  }
+  dimWins = []
+}
+
+function ensureBlockerWins() {
+  if (blockerWins.length > 0) return
+  const primary = screen.getPrimaryDisplay()
+  const blockerPath = app.isPackaged
+    ? path.join(process.resourcesPath, "popup-blocker.html")
+    : path.join(process.cwd(), "public", "popup-blocker.html")
+
+  for (const d of screen.getAllDisplays()) {
+    if (d.id === primary.id) continue
+    const b = d.bounds
+    const win = new BrowserWindow({
+      width: b.width,
+      height: b.height,
+      x: b.x,
+      y: b.y,
+      frame: false,
+      transparent: true,
+      resizable: false,
+      movable: false,
+      skipTaskbar: true,
+      focusable: false,
+      show: false,
+      webPreferences: { contextIsolation: false },
+    })
+    win.setIgnoreMouseEvents(false)
+    win.setAlwaysOnTop(true, "screen-saver", 1)
+    win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
+    win.setFocusable(false)
+    win.loadFile(blockerPath)
+    win.once("ready-to-show", () => {
+      if (!win.isDestroyed()) win.showInactive()
+    })
+    blockerWins.push(win)
+  }
+}
+
+function destroyBlockerWins() {
+  for (const w of blockerWins) {
+    if (!w.isDestroyed()) w.close()
+  }
+  blockerWins = []
+}
+
+function stopSustainedReclaim() {
+  if (sustainedReclaimTimer) {
+    clearInterval(sustainedReclaimTimer)
+    sustainedReclaimTimer = null
+  }
+}
+
+function reclaimTopNow() {
+  const top = topPopup()
+  if (!top || top.mainWin.isDestroyed()) return
+  top.mainWin.setAlwaysOnTop(true, "screen-saver", 100)
+  top.mainWin.moveTop()
+  if (!top.mainWin.isVisible()) top.mainWin.show()
+  top.mainWin.focus()
+  top.mainWin.webContents.focus()
+}
+
+function startSustainedReclaim(durationMs = 4000, intervalMs = 180) {
+  stopSustainedReclaim()
+  const startedAt = Date.now()
+  sustainedReclaimTimer = setInterval(() => {
+    if (popups.length === 0 || (Date.now() - startedAt) > durationMs) {
+      stopSustainedReclaim()
+      return
     }
-  })
+    reclaimTopNow()
+  }, intervalMs)
+}
 
-  win.setIgnoreMouseEvents(false)
-  win.setAlwaysOnTop(true, "screen-saver", 1)
-  win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
+function queueTopFocusReclaim(delays = [0, 80, 180]) {
+  const top = topPopup()
+  if (!top || top.mainWin.isDestroyed()) return
+  const reclaimSeq = ++focusReclaimSeq
 
-  // Khi blocker được focus (user click sang màn hình phụ)
-  // redirect ngay về mainWin
-  win.on("focus", refocusMain)
+  for (const delay of delays) {
+    setTimeout(() => {
+      if (reclaimSeq !== focusReclaimSeq) return
+      const currentTop = topPopup()
+      if (!currentTop || currentTop.mainWin !== top.mainWin || top.mainWin.isDestroyed()) return
 
-  // Load HTML với ESC listener
-  // Dùng ipc-renderer không khả dụng vì contextIsolation
-  // Thay vào đó dùng window.close() — main process lắng nghe "close" event
-  const html = `<!DOCTYPE html><html><head>
-    <style>*{margin:0;padding:0}html,body{width:100%;height:100%;background:rgba(0,0,0,0.01);overflow:hidden}</style>
-  </head><body>
-    <script>
-      window.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') window.close();
-      });
-    </script>
-  </body></html>`
+      reclaimTopNow()
+    }, delay)
+  }
+}
 
-  win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html))
+function onBrowserWindowFocus(_e: Electron.Event, focusedWin: BrowserWindow) {
+  const top = topPopup()
+  if (!top || top.mainWin.isDestroyed()) return
+  if (focusedWin === top.mainWin || isAnyPopupWindow(focusedWin)) return
+  queueTopFocusReclaim([30, 110, 220])
+}
 
-  // Handle Esc at main-process layer for better reliability on Windows.
-  win.webContents.on("before-input-event", (_event, input) => {
-    if ((input.key === "Escape" || input.code === "Escape") && input.type === "keyDown") {
-      onEsc()
-    }
-  })
+function onAppActivate() {
+  queueTopFocusReclaim([0, 60, 150])
+  startSustainedReclaim(2200, 170)
+}
 
-  // "close" event = user bấm ESC trên màn hình phụ → đóng toàn bộ
-  win.on("close", onEsc)
+function startFocusGuards() {
+  if (focusGuardsEnabled) return
+  focusGuardsEnabled = true
+  app.on("browser-window-focus", onBrowserWindowFocus)
+  app.on("activate", onAppActivate)
+}
 
-  win.once("ready-to-show", () => {
-    if (!win.isDestroyed()) win.show()
-  })
+function stopFocusGuards() {
+  if (!focusGuardsEnabled) return
+  focusGuardsEnabled = false
+  focusReclaimSeq++
+  stopSustainedReclaim()
+  app.removeListener("browser-window-focus", onBrowserWindowFocus)
+  app.removeListener("activate", onAppActivate)
+}
 
-  return win
+function isTopWindow(win: BrowserWindow) {
+  return topPopup()?.mainWin === win
 }
 
 export function showReminderPopup(reminder: Reminder) {
+  // Keep stacking even when multiple reminders trigger close to each other.
+  const instanceId = reminder.id
   const primary = screen.getPrimaryDisplay()
-  const allDisplays = screen.getAllDisplays()
   const { bounds } = primary
 
   const popupPath = app.isPackaged
     ? path.join(process.resourcesPath, "popup.html")
     : path.join(process.cwd(), "public", "popup.html")
 
-  // ── Popup chính trên màn hình primary ──
+  const offset = popups.length * 24
+
   const mainWin = new BrowserWindow({
     width: bounds.width,
     height: bounds.height,
@@ -110,144 +251,132 @@ export function showReminderPopup(reminder: Reminder) {
     show: false,
     webPreferences: {
       contextIsolation: true,
-      enableBlinkFeatures: 'FontAccess',
     }
   })
 
-  mainWin.setIgnoreMouseEvents(false)
+  mainWin.setAlwaysOnTop(true, "screen-saver", 100)
   mainWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
-  mainWin.setAlwaysOnTop(true, "screen-saver", process.platform === "win32" ? 2 : 1)
 
-  const reclaimMainFocus = () => {
-    if (mainWin.isDestroyed()) return
-    mainWin.moveTop()
-    if (process.platform === "win32") app.focus()
-    mainWin.focus()
-    mainWin.webContents.focus()
-  }
-
-  const refocusMain = () => {
-    reclaimMainFocus()
-    // Windows 10 can occasionally deny immediate focus steal.
-    // Retry shortly to tighten focus lock after rapid user interactions.
-    setTimeout(reclaimMainFocus, 30)
-    setTimeout(reclaimMainFocus, 120)
-  }
-
-  const closeAll = () => {
+  const closeThis = () => {
     if (!mainWin.isDestroyed()) mainWin.close()
   }
 
-  // ── Blocker windows trên màn hình phụ ──
-  const blockWins = allDisplays
-    .filter(d => d.id !== primary.id)
-    .map(d => createBlockerWindow(d.bounds, closeAll, refocusMain))
+  // // ✅ FIX BLUR (không loop)
+  // mainWin.on("blur", () => {
+  //   if (topPopup()?.mainWin === mainWin) {
+  //     setTimeout(() => {
+  //       if (!mainWin.isDestroyed()) mainWin.focus()
+  //     }, 50)
+  //   }
+  // })
+  mainWin.on("blur", () => {
+    if (topPopup()?.mainWin !== mainWin) return
 
-  const isPopupWindow = (w: BrowserWindow) => w === mainWin || blockWins.includes(w)
-
-  // While popup is active, disable all non-popup app windows
-  // so click cannot move interaction away from reminder flow.
-  const disabledWindows: WindowEnableState[] = []
-  let nonPopupWindowsLocked = false
-  const disableNonPopupWindows = () => {
-    if (nonPopupWindowsLocked) return
-    nonPopupWindowsLocked = true
-    for (const w of BrowserWindow.getAllWindows()) {
-      if (w.isDestroyed() || isPopupWindow(w)) continue
-      const wasEnabled = w.isEnabled()
-      disabledWindows.push({ win: w, wasEnabled })
-      if (wasEnabled) w.setEnabled(false)
-    }
-  }
-
-  const restoreNonPopupWindows = () => {
-    if (!nonPopupWindowsLocked) return
-    for (const entry of disabledWindows) {
-      if (entry.win.isDestroyed()) continue
-      entry.win.setEnabled(entry.wasEnabled)
-    }
-    disabledWindows.length = 0
-    nonPopupWindowsLocked = false
-  }
-
-  // Focus lock trên mainWin
-  let focusInterval: ReturnType<typeof setInterval> | null = null
-  const appFocusGuard = (_e: Electron.Event, focusedWin: BrowserWindow) => {
-    if (mainWin.isDestroyed()) return
-    if (!isPopupWindow(focusedWin)) refocusMain()
-  }
-
-  mainWin.on("blur", refocusMain)
-  app.on("browser-window-focus", appFocusGuard)
-
-  const startFocusLock = () => {
-    if (focusInterval) return
-    reclaimMainFocus()
-    setTimeout(reclaimMainFocus, 10)
-    setTimeout(reclaimMainFocus, 60)
-    setTimeout(reclaimMainFocus, 180)
-    setTimeout(reclaimMainFocus, 350)
-    focusInterval = setInterval(() => {
-      if (mainWin.isDestroyed()) {
-        clearInterval(focusInterval!)
-        return
-      }
-      if (!mainWin.isFocused()) reclaimMainFocus()
-    }, 100)
-  }
-
-  // Cleanup khi mainWin đóng
-  mainWin.on("closed", () => {
-    mainWin.off("blur", refocusMain)
-    app.off("browser-window-focus", appFocusGuard)
-    if (focusInterval) { clearInterval(focusInterval); focusInterval = null }
-    restoreNonPopupWindows()
-    // Bỏ close listener trên blockWins trước khi đóng
-    // để tránh loop closeAll → closed → closeAll
-    blockWins.forEach(w => {
-      w.removeAllListeners("close")
-      if (!w.isDestroyed()) w.close()
-    })
-    popups = popups.filter(p => p.mainWin !== mainWin)
+    // Reclaim theo nhịp vừa phải để tránh nhấp nháy khi hệ thống UI tạm giữ focus.
+    queueTopFocusReclaim([90, 180, 320])
+    startSustainedReclaim(4200, 160)
   })
 
-  disableNonPopupWindows()
+  // ✅ FIX CLOSED (đúng syntax)
+  mainWin.on("closed", () => {
+    popups = popups.filter(p => p.mainWin !== mainWin)
+
+    syncMouseIgnore()
+
+    if (popups.length === 0) {
+      destroyDimWins()
+      destroyBlockerWins()
+      stopFocusGuards()
+      return
+    }
+
+    const newTop = topPopup()
+    if (newTop && !newTop.mainWin.isDestroyed()) {
+      newTop.mainWin.moveTop()
+      newTop.mainWin.focus()
+      newTop.mainWin.webContents.focus()
+    }
+  })
+
+  // mainWin.webContents.on("before-input-event", (_e, input) => {
+  //   if (input.key === "Escape") closeThis()
+  // })
+  mainWin.webContents.on("before-input-event", (_e, input) => {
+    if ((input.key === "Escape" || input.code === "Escape") && input.type === "keyDown") {
+      if (isTopWindow(mainWin)) {
+        closeThis() // ✅ chỉ đóng popup trên cùng
+      }
+    }
+  })
 
   mainWin.loadFile(popupPath, {
     query: {
       cfg: JSON.stringify({
-        color: reminder.config.color,
         icon: reminder.config.icon,
+        color: reminder.config.color,
         message: reminder.config.message,
-        displayMs: clamp(reminder.config.displayMs, 60_000, 24 * 60 * 60_000),
-        startAt: Date.now()
+        displayMs: clamp(reminder.config.displayMs, 60000, 86400000),
+        startAt: Date.now(),
+        stackOffset: offset,
       })
     }
   })
 
+  // mainWin.once("ready-to-show", () => {
+  //   if (!mainWin.isDestroyed()) {
+  //     mainWin.show()
+  //     mainWin.focus()
+
+  //     blockWins.forEach(w => {
+  //       if (!w.isDestroyed()) w.showInactive()
+  //     })
+  //   }
+  // })
   mainWin.once("ready-to-show", () => {
-    if (!mainWin.isDestroyed()) {
-      // Show blocker windows ngay tại thời điểm mainWin được phép show,
-      // tránh trường hợp click quá nhanh trước khi blocker sẵn sàng.
-      blockWins.forEach(w => {
-        if (!w.isDestroyed()) {
-          w.show()
-          w.moveTop()
-        }
-      })
+    if (mainWin.isDestroyed()) return
 
-      mainWin.show()
-      startFocusLock()
-    }
+    mainWin.show()
+    queueTopFocusReclaim([40, 120, 220])
+    startSustainedReclaim(2200, 170)
   })
 
-  // Handle Esc at main-process layer in addition to renderer key listener.
-  mainWin.webContents.on("before-input-event", (_event, input) => {
-    if ((input.key === "Escape" || input.code === "Escape") && input.type === "keyDown") {
-      closeAll()
-    }
-  })
+  const wasEmpty = popups.length === 0
+  if (wasEmpty) {
+    ensureDimWins()
+    ensureBlockerWins()
+  }
 
-  popups.push({ mainWin, blockWins, reminderId: reminder.id })
+  popups.push({ mainWin, reminderId: instanceId })
+  syncMouseIgnore()
+  if (wasEmpty) startFocusGuards()
+
   return mainWin
+}
+
+function waitForClosed(win: BrowserWindow): Promise<void> {
+  if (win.isDestroyed()) return Promise.resolve()
+  return new Promise((resolve) => {
+    win.once("closed", resolve)
+    win.close()
+  })
+}
+
+async function previewReminderInternal(reminder: Reminder) {
+  const closing = popups.map(p => waitForClosed(p.mainWin))
+  await Promise.allSettled(closing)
+
+  popups = []
+  syncMouseIgnore()
+  destroyDimWins()
+  destroyBlockerWins()
+  stopFocusGuards()
+
+  showReminderPopup(reminder)
+}
+
+export function previewReminder(reminder: Reminder) {
+  previewQueue = previewQueue
+    .catch(() => undefined)
+    .then(() => previewReminderInternal(reminder))
+  return previewQueue
 }

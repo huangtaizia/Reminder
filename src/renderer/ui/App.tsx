@@ -5,7 +5,7 @@ const ReminderList = React.lazy(() =>
   import('./ReminderList').then(m => ({ default: m.ReminderList }))
 );
 const ReminderEditor = React.lazy(() =>
-  import('./ReminderEditor').then(m => ({ default: m.ReminderEditor }))
+  import('./reminderEditor/ReminderEditor').then(m => ({ default: m.ReminderEditor }))
 );
 const Settings = React.lazy(() =>
   import('./Settings').then(m => ({ default: m.Settings }))
@@ -339,6 +339,7 @@ export function App() {
               </div>
               <React.Suspense fallback={<div style={{ padding: 24, opacity: 0.7 }}>Loading...</div>}>
                 <ReminderEditor
+                  key={editing?.id ?? 'new'}
                   initial={editing}
                   onSaved={() => { setEditing(null); setTab('list'); }}
                 />

@@ -33,6 +33,7 @@ function scheduleLabel(r: Reminder): string {
   }
   const hh = String(r.schedule.hour).padStart(2, '0');
   const mm = String(r.schedule.minute).padStart(2, '0');
+  if (r.schedule.repeat === 'once') return `ONCE: ${hh}:${mm}`;
   return `NEXT: ${hh}:${mm}`;
 }
 
@@ -44,6 +45,9 @@ function descriptionLabel(r: Reminder): string {
   }
   const hh = String(r.schedule.hour).padStart(2, '0');
   const mm = String(r.schedule.minute).padStart(2, '0');
+  if (r.schedule.repeat === 'once') {
+    return `One-time at ${hh}:${mm}. Notification shows for ${dispMin} minute(s).`;
+  }
   return `Daily at ${hh}:${mm}. Notification shows for ${dispMin} minute(s).`;
 }
 
@@ -94,6 +98,13 @@ export function ReminderList({
 
   React.useEffect(() => { refresh(); }, [refresh]);
 
+  // Poll state periodically so "auto disable" (especially for "once" reminders)
+  // is reflected in UI without requiring user refresh.
+  React.useEffect(() => {
+    const t = setInterval(() => { void refresh(); }, 5000);
+    return () => clearInterval(t);
+  }, [refresh]);
+
   const toggleEnabled = React.useCallback(async (id: string) => {
     const current = items.find(x => x.id === id);
     if (!current) return;
@@ -140,7 +151,6 @@ export function ReminderList({
 
     const Row = ({ r, onEdit, onToggle, onDelete }: RowProps) => {
       const isDisabled = !r.enabled;
-      const iconBg = isDisabled ? 'rgba(255, 255, 255, 0.1)' : 'rgba(59,158,255,0.12)';
 
       return (
         <div
@@ -150,7 +160,7 @@ export function ReminderList({
         >
           {/* Left */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 24, flex: 1, minWidth: 0 }}>
-            <div className="remRowIcon" style={{ background: iconBg }}>
+            <div className="remRowIcon">
               {renderIcon(r.config.icon, !isDisabled)}
             </div>
 
@@ -203,7 +213,13 @@ export function ReminderList({
         ar.schedule.type === br.schedule.type &&
         (ar.schedule.type === 'interval'
           ? (br.schedule.type === 'interval' && ar.schedule.intervalMs === br.schedule.intervalMs)
-          : (br.schedule.type === 'fixedDaily' && ar.schedule.hour === br.schedule.hour && ar.schedule.minute === br.schedule.minute)
+          : (
+              br.schedule.type === 'fixedDaily' &&
+              ar.schedule.hour === br.schedule.hour &&
+              ar.schedule.minute === br.schedule.minute &&
+              ar.schedule.repeat === br.schedule.repeat &&
+              ar.schedule.onceAt === br.schedule.onceAt
+            )
         )
       );
     });

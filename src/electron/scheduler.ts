@@ -1,6 +1,7 @@
 import { BrowserWindow } from 'electron';
 import crypto from 'node:crypto';
 import type { Reminder } from '../shared/types';
+import { upsertReminder } from './store';
 
 type TriggerHandler = (reminder: Reminder) => void;
 
@@ -24,6 +25,33 @@ function msUntilNextFixedDaily(hour: number, minute: number, now = new Date()): 
     target.setDate(target.getDate() + 1);
   }
   return target.getTime() - now.getTime();
+}
+
+function isFixedOnce(reminder: Reminder): boolean {
+  return reminder.schedule.type === 'fixedDaily' && reminder.schedule.repeat === 'once';
+}
+
+function isFixedOnceReminder(reminder: Reminder): reminder is Reminder & {
+  schedule: {
+    type: 'fixedDaily';
+    hour: number;
+    minute: number;
+    repeat: 'once';
+    onceAt?: number;
+  };
+} {
+  return (
+    reminder.schedule.type === 'fixedDaily' &&
+    reminder.schedule.repeat === 'once'
+  );
+}
+
+function msUntilNextFixedDailyAt(hour: number, minute: number, nowMs = Date.now()): number {
+  const target = new Date(nowMs);
+  target.setSeconds(0, 0);
+  target.setHours(hour, minute, 0, 0);
+  if (target.getTime() <= nowMs) target.setDate(target.getDate() + 1);
+  return target.getTime();
 }
 
 export class ReminderScheduler {
@@ -52,14 +80,53 @@ export class ReminderScheduler {
     if (reminder.enabled === false) return;
 
     const key = crypto.randomUUID();
+    let effectiveReminder = reminder;
+
+    // For "once" mode, re-calc onceAt every time we schedule
+    // (covers "enable lại" rule).
+    if (isFixedOnceReminder(reminder)) {
+      const nextAt = msUntilNextFixedDailyAt(
+        Math.max(0, Math.min(23, reminder.schedule.hour)),
+        Math.max(0, Math.min(59, reminder.schedule.minute)),
+      );
+
+      const prevAt = reminder.schedule.onceAt;
+      const prevAtValid = typeof prevAt === 'number' && Number.isFinite(prevAt);
+      if (!prevAtValid || prevAt !== nextAt) {
+        const next: Reminder = {
+          ...reminder,
+          schedule: { ...reminder.schedule, onceAt: nextAt },
+        };
+        upsertReminder(next);
+        effectiveReminder = next;
+      }
+    }
+
     const scheduleNext = () => {
-      const delay = this.computeDelay(reminder);
+      const delay = this.computeDelay(effectiveReminder);
+      if (delay == null) {
+        this.entries.delete(reminder.id);
+        return;
+      }
+
       const timeout = setTimeout(() => {
         // if replaced, ignore
         const current = this.entries.get(reminder.id);
         if (!current || current.key !== key) return;
 
-        this.onTrigger(reminder);
+        this.onTrigger(effectiveReminder);
+        if (isFixedOnceReminder(effectiveReminder)) {
+          // After firing once, automatically disable the reminder.
+          if (effectiveReminder.enabled !== false) {
+            // Defer write to avoid blocking the event loop
+            // right after triggering the popup.
+            setTimeout(() => {
+              upsertReminder({ ...effectiveReminder, enabled: false });
+            }, 0);
+          }
+          this.entries.delete(reminder.id);
+          return;
+        }
         scheduleNext();
       }, delay);
 
@@ -75,13 +142,26 @@ export class ReminderScheduler {
     this.entries.delete(reminderId);
   }
 
-  private computeDelay(reminder: Reminder): number {
+  private computeDelay(reminder: Reminder): number | null {
     if (reminder.schedule.type === 'interval') {
       const ms = reminder.schedule.intervalMs;
       if (!Number.isFinite(ms) || ms <= 0) return 60_000;
       return clampMs(ms);
     }
     if (reminder.schedule.type === 'fixedDaily') {
+      if (reminder.schedule.repeat === 'once') {
+        const at = reminder.schedule.onceAt;
+        if (typeof at !== 'number' || !Number.isFinite(at)) {
+          const fallback = msUntilNextFixedDaily(
+            Math.max(0, Math.min(23, reminder.schedule.hour)),
+            Math.max(0, Math.min(59, reminder.schedule.minute))
+          );
+          return clampMs(fallback);
+        }
+        const ms = at - Date.now();
+        if (ms <= 0) return null;
+        return ms;
+      }
       const ms = msUntilNextFixedDaily(
         Math.max(0, Math.min(23, reminder.schedule.hour)),
         Math.max(0, Math.min(59, reminder.schedule.minute))

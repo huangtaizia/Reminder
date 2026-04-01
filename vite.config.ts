@@ -19,6 +19,11 @@ export default defineConfig({
   server: {
     strictPort: true,
     host: '127.0.0.1',
+    // Windows: một số môi trường (Cursor, sync folder) không bắt được save file → HMR không chạy
+    watch: {
+      usePolling: process.platform === 'win32',
+      interval: 300,
+    },
   },
   build: {
     outDir: 'dist',

@@ -1,6 +1,6 @@
 {
   "name": "reminder",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Reminder for windows",
   "main": "dist-electron/electron/main.js",
   "scripts": {
@@ -40,6 +40,14 @@
       {
         "from": "public/popup.html",
         "to": "popup.html"
+      },
+      {
+        "from": "public/popup-blocker.html",
+        "to": "popup-blocker.html"
+      },
+      {
+        "from": "public/popup-dim.html",
+        "to": "popup-dim.html"
       }
     ],
     "appId": "com.hhv.reminder",
