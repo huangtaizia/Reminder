@@ -10,4 +10,9 @@ contextBridge.exposeInMainWorld('reminder', {
   minimizeWindow: async () => ipcRenderer.invoke('window:minimize'),
   closeWindow: async () => ipcRenderer.invoke('window:close'),
   quitApp: async () => ipcRenderer.invoke('quit-app'),
+  onStateChanged: (cb: () => void) => {
+    const handler = () => cb();
+    ipcRenderer.on('state:changed', handler);
+    return () => ipcRenderer.removeListener('state:changed', handler);
+  },
 });

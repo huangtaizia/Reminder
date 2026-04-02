@@ -196,6 +196,17 @@
   padding: 0 10px;
   font-size: 13px;
   cursor: pointer;
+  transition: background 140ms ease, color 140ms ease;
+}
+.dropdownOption:hover {
+  background: rgba(106, 126, 160, 0.137);
+  color: #dae2fd;
+}
+.dropdownOption:focus-visible {
+  outline: 2px solid rgba(173, 198, 255, 0.85);
+  outline-offset: 2px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #dae2fd;
 }
 .dropdownOptionActive {
   background: rgba(173, 198, 255, 0.14);

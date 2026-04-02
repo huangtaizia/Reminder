@@ -3,11 +3,23 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.broadcastStateChanged = broadcastStateChanged;
 exports.registerIpc = registerIpc;
 const electron_1 = require("electron");
 const node_crypto_1 = __importDefault(require("node:crypto"));
 const store_1 = require("./store");
 const popup_1 = require("./popup");
+function broadcastStateChanged() {
+    for (const win of electron_1.BrowserWindow.getAllWindows()) {
+        try {
+            // Renderer listens via preload; popup/dim windows can safely ignore.
+            win.webContents.send('state:changed');
+        }
+        catch {
+            // ignore
+        }
+    }
+}
 function registerIpc(opts) {
     const scheduler = opts?.scheduler;
     electron_1.ipcMain.handle('reminder:ping', async () => 'pong');
@@ -33,12 +45,14 @@ function registerIpc(opts) {
         };
         (0, store_1.writeState)(next);
         scheduler?.rescheduleAll(next.reminders, next.settings.masterEnabled);
+        broadcastStateChanged();
         return next;
     });
     electron_1.ipcMain.handle('settings:set', async (_e, partial) => {
         const next = (0, store_1.setSettings)(partial);
         scheduler?.rescheduleAll(next.reminders, next.settings.masterEnabled);
         opts?.onSettingsChanged?.(next.settings);
+        broadcastStateChanged();
         return next;
     });
     electron_1.ipcMain.handle('reminder:upsert', async (_e, input) => {
@@ -53,11 +67,13 @@ function registerIpc(opts) {
         };
         const next = (0, store_1.upsertReminder)(reminder);
         scheduler?.rescheduleAll(next.reminders, next.settings.masterEnabled);
+        broadcastStateChanged();
         return next;
     });
     electron_1.ipcMain.handle('reminder:delete', async (_e, id) => {
         const next = (0, store_1.deleteReminder)(id);
         scheduler?.rescheduleAll(next.reminders, next.settings.masterEnabled);
+        broadcastStateChanged();
         return next;
     });
     electron_1.ipcMain.handle('popup:preview', async (_e, input) => {

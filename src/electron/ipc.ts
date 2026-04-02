@@ -7,6 +7,17 @@ import { showReminderPopup, previewReminder } from './popup';
 
 type SchedulerApi = Pick<ReminderScheduler, 'rescheduleAll'>;
 
+export function broadcastStateChanged() {
+  for (const win of BrowserWindow.getAllWindows()) {
+    try {
+      // Renderer listens via preload; popup/dim windows can safely ignore.
+      win.webContents.send('state:changed');
+    } catch {
+      // ignore
+    }
+  }
+}
+
 export function registerIpc(opts?: { scheduler?: SchedulerApi; onSettingsChanged?: (s: PersistedState['settings']) => void }) {
   const scheduler = opts?.scheduler;
   ipcMain.handle('reminder:ping', async () => 'pong');
@@ -36,6 +47,7 @@ export function registerIpc(opts?: { scheduler?: SchedulerApi; onSettingsChanged
     };
     writeState(next);
     scheduler?.rescheduleAll(next.reminders, next.settings.masterEnabled);
+    broadcastStateChanged();
     return next;
   });
 
@@ -43,6 +55,7 @@ export function registerIpc(opts?: { scheduler?: SchedulerApi; onSettingsChanged
     const next = setSettings(partial);
     scheduler?.rescheduleAll(next.reminders, next.settings.masterEnabled);
     opts?.onSettingsChanged?.(next.settings);
+    broadcastStateChanged();
     return next;
   });
 
@@ -58,12 +71,14 @@ export function registerIpc(opts?: { scheduler?: SchedulerApi; onSettingsChanged
     };
     const next = upsertReminder(reminder);
     scheduler?.rescheduleAll(next.reminders, next.settings.masterEnabled);
+    broadcastStateChanged();
     return next;
   });
 
   ipcMain.handle('reminder:delete', async (_e, id: string) => {
     const next = deleteReminder(id);
     scheduler?.rescheduleAll(next.reminders, next.settings.masterEnabled);
+    broadcastStateChanged();
     return next;
   });
 

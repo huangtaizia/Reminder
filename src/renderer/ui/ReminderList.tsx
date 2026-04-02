@@ -76,13 +76,17 @@ const IconDelete = () => (
 );
 
 export function ReminderList({
+  initialReminders,
   onEdit,
   onCountChange,
 }: {
+  initialReminders?: Reminder[] | null;
   onEdit?: (reminder: Reminder) => void;
   onCountChange?: (count: number) => void;
 }) {
   const [items, setItems] = React.useState<Reminder[]>([]);
+  const dirtyRef = React.useRef(false);
+  const refreshTimerRef = React.useRef<number | null>(null);
 
   const applyReminders = React.useCallback((reminders: Reminder[]) => {
     const sorted = [...reminders].sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
@@ -96,14 +100,68 @@ export function ReminderList({
     applyReminders(reminders);
   }, [applyReminders]);
 
-  React.useEffect(() => { refresh(); }, [refresh]);
-
-  // Poll state periodically so "auto disable" (especially for "once" reminders)
-  // is reflected in UI without requiring user refresh.
-  React.useEffect(() => {
-    const t = setInterval(() => { void refresh(); }, 5000);
-    return () => clearInterval(t);
+  const scheduleRefresh = React.useCallback(() => {
+    // If hidden, don't waste IPC; mark dirty and refresh on focus/show.
+    if (document.hidden) {
+      dirtyRef.current = true;
+      return;
+    }
+    // Coalesce bursts of events into a single refresh.
+    if (refreshTimerRef.current != null) return;
+    refreshTimerRef.current = window.setTimeout(() => {
+      refreshTimerRef.current = null;
+      dirtyRef.current = false;
+      void refresh();
+    }, 120);
   }, [refresh]);
+
+  React.useEffect(() => {
+    if (Array.isArray(initialReminders)) {
+      applyReminders(initialReminders);
+      // Seed from the boot snapshot for fast initial paint, but always
+      // refresh from the source of truth because this component can be
+      // mounted after creating/editing reminders in another tab.
+      void refresh();
+      return;
+    }
+    void refresh();
+  }, [initialReminders, applyReminders, refresh]);
+
+  // Event-driven updates: state changes pushed from main process.
+  React.useEffect(() => {
+    const off = window.reminder.onStateChanged(() => {
+      scheduleRefresh();
+    });
+    return () => {
+      off?.();
+    };
+  }, [scheduleRefresh]);
+
+  // Refresh when app returns to foreground (covers "running in tray" + missed events).
+  React.useEffect(() => {
+    const onFocus = () => {
+      scheduleRefresh();
+    };
+    const onVisibility = () => {
+      if (!document.hidden) {
+        scheduleRefresh();
+      }
+    };
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [scheduleRefresh]);
+
+  // Fallback polling (low frequency) when visible, to minimize risk of stale UI.
+  React.useEffect(() => {
+    const t = window.setInterval(() => {
+      if (!document.hidden) scheduleRefresh();
+    }, 60_000);
+    return () => window.clearInterval(t);
+  }, [scheduleRefresh]);
 
   const toggleEnabled = React.useCallback(async (id: string) => {
     const current = items.find(x => x.id === id);
@@ -156,7 +214,15 @@ export function ReminderList({
         <div
           key={r.id}
           className={'remRow' + (isDisabled ? ' disabled' : '')}
+          role="button"
+          tabIndex={0}
           onClick={() => onEdit?.(r)}
+          onKeyDown={e => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              onEdit?.(r);
+            }
+          }}
         >
           {/* Left */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 24, flex: 1, minWidth: 0 }}>

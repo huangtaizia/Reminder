@@ -17,6 +17,7 @@ declare global {
       minimizeWindow: () => Promise<any>;
       closeWindow: () => Promise<any>;
       quitApp: () => Promise<any>;
+      onStateChanged: (cb: () => void) => () => void;
     };
   }
 }

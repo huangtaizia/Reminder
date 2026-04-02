@@ -1,7 +1,7 @@
 import { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain, session } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
-import { registerIpc } from './ipc';
+import { broadcastStateChanged, registerIpc } from './ipc';
 import { ReminderScheduler } from './scheduler';
 import { readState, setSettings } from './store';
 import { isReminderPopupActive, showReminderPopup } from './popup';
@@ -148,7 +148,7 @@ app.whenReady().then(async () => {
   scheduler = new ReminderScheduler((_reminder) => {
     if (isDev) console.log('[Reminder] trigger', _reminder.id);
     showReminderPopup(_reminder);
-  });
+  }, { onStateChanged: broadcastStateChanged });
 
   const state = readState();
 

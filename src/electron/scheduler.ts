@@ -4,6 +4,7 @@ import type { Reminder } from '../shared/types';
 import { upsertReminder } from './store';
 
 type TriggerHandler = (reminder: Reminder) => void;
+type StateChangedHandler = () => void;
 
 type ScheduleEntry = {
   reminderId: string;
@@ -25,10 +26,6 @@ function msUntilNextFixedDaily(hour: number, minute: number, now = new Date()): 
     target.setDate(target.getDate() + 1);
   }
   return target.getTime() - now.getTime();
-}
-
-function isFixedOnce(reminder: Reminder): boolean {
-  return reminder.schedule.type === 'fixedDaily' && reminder.schedule.repeat === 'once';
 }
 
 function isFixedOnceReminder(reminder: Reminder): reminder is Reminder & {
@@ -57,9 +54,11 @@ function msUntilNextFixedDailyAt(hour: number, minute: number, nowMs = Date.now(
 export class ReminderScheduler {
   private entries = new Map<string, ScheduleEntry>();
   private onTrigger: TriggerHandler;
+  private onStateChanged?: StateChangedHandler;
 
-  constructor(onTrigger: TriggerHandler) {
+  constructor(onTrigger: TriggerHandler, opts?: { onStateChanged?: StateChangedHandler }) {
     this.onTrigger = onTrigger;
+    this.onStateChanged = opts?.onStateChanged;
   }
 
   stopAll() {
@@ -98,6 +97,7 @@ export class ReminderScheduler {
           schedule: { ...reminder.schedule, onceAt: nextAt },
         };
         upsertReminder(next);
+        try { this.onStateChanged?.(); } catch { /* ignore */ }
         effectiveReminder = next;
       }
     }
@@ -122,6 +122,7 @@ export class ReminderScheduler {
             // right after triggering the popup.
             setTimeout(() => {
               upsertReminder({ ...effectiveReminder, enabled: false });
+              try { this.onStateChanged?.(); } catch { /* ignore */ }
             }, 0);
           }
           this.entries.delete(reminder.id);

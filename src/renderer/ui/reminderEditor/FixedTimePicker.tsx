@@ -13,6 +13,7 @@ export function FixedTimePicker({ hour, minute, onHourChange, onMinuteChange }: 
         type="button"
         onClick={onClick}
         className={styles.timeArrowBtn}
+        tabIndex={-1}
         aria-label={up ? 'Tăng giá trị thời gian' : 'Giảm giá trị thời gian'}
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">

@@ -136,7 +136,7 @@ electron_1.app.whenReady().then(async () => {
         if (isDev)
             console.log('[Reminder] trigger', _reminder.id);
         (0, popup_1.showReminderPopup)(_reminder);
-    });
+    }, { onStateChanged: ipc_1.broadcastStateChanged });
     const state = (0, store_1.readState)();
     (0, autostart_1.setAutostartEnabled)(!!state.settings.runOnStartup, { startMinimized: !!state.settings.startMinimized }).catch(() => { });
     (0, ipc_1.registerIpc)({

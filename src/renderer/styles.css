@@ -111,6 +111,11 @@ body {
   color: #ff7070;
   border-color: rgba(240, 68, 68, 0.3);
 }
+.tbBtn:focus-visible {
+  outline: 2px solid rgba(173, 198, 255, 0.85);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(77, 142, 255, 0.22);
+}
 
 .appBody {
   display: flex;
@@ -198,6 +203,11 @@ body {
   border-left-color: #ADC6FF;
   color: #ADC6FF;
 }
+.sidebarItem:focus-visible {
+  outline: 2px solid rgba(173, 198, 255, 0.9);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(77, 142, 255, 0.25);
+}
 .sidebarIcon {
   width: 18px;
   display: flex;
@@ -226,6 +236,11 @@ body {
 }
 .newReminderBtn:hover { opacity: 0.88; }
 .newReminderBtn:active { transform: translateY(0); }
+.newReminderBtn:focus-visible {
+  outline: 2px solid rgba(0, 46, 106, 0.85);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 4px rgba(173, 198, 255, 0.28);
+}
 
 /* ═══════════════════════════════════════════════════════════════════
    MAIN CONTENT (gradient panel)
@@ -261,7 +276,7 @@ body {
   width: 400px;
   height: 400px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(77, 142, 255, 0.08) 0%, transparent 70%);
+  background: radial-gradient(ellipse, rgba(96, 154, 255, 0.08) 0%, transparent 70%);
   pointer-events: none;
 }
 .listHeaderLeft { min-width: 0; }
@@ -300,7 +315,7 @@ body {
   text-align: right;
   line-height: 15px;
 }
-.remScroll { flex: 1; overflow-y: auto; }
+.remScroll { flex: 1; overflow-y: auto; margin-top: 16px; }
 
 /* ═══════════════════════════════════════════════════════════════════
    REMINDER LIST — row card + typography
@@ -324,6 +339,12 @@ body {
 .remRow:hover {
   border-color: rgba(173, 198, 255, 0.25);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+.remRow:focus-visible {
+  outline: 2px solid rgba(173, 198, 255, 0.9);
+  outline-offset: 3px;
+  border-color: rgba(173, 198, 255, 0.35);
+  box-shadow: 0 0 0 4px rgba(77, 142, 255, 0.22), 0 12px 40px rgba(0, 0, 0, 0.5);
 }
 .remRow.disabled {
   background: rgba(120, 136, 170, 0.205);
@@ -413,6 +434,11 @@ body {
   transition: background 160ms ease;
 }
 .toggle.on { background: #46c550c2; }
+.toggle:focus-visible {
+  outline: 2px solid rgba(173, 198, 255, 0.9);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 4px rgba(77, 142, 255, 0.22);
+}
 .toggleKnob {
   width: 20px;
   height: 20px;
@@ -441,6 +467,11 @@ body {
 .iconBtn:hover {
   background: rgba(255, 255, 255, 0.06);
   color: #DAE2FD;
+}
+.iconBtn:focus-visible {
+  outline: 2px solid rgba(173, 198, 255, 0.9);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(77, 142, 255, 0.22);
 }
 .iconBtn.danger { color: #fd6250; }
 .iconBtn.danger:hover {
@@ -560,7 +591,7 @@ body {
 /* ═══════════════════════════════════════════════════════════════════
    GLOBAL UTILITIES
    ═══════════════════════════════════════════════════════════════════ */
-::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar { width: 8px; }
 ::-webkit-scrollbar-track {
   background: transparent;
   border-radius: 999px;

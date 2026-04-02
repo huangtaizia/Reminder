@@ -190,13 +190,16 @@ export function App() {
   const [editing, setEditing] = React.useState<Reminder | null>(null);
   const [showCloseDialog, setShowCloseDialog] = React.useState(false);
   const [reminderCount, setReminderCount] = React.useState(0);
+  const [initialReminders, setInitialReminders] = React.useState<Reminder[] | null>(null);
 
   React.useEffect(() => {
     let cancelled = false;
     window.reminder.getState().then(s => {
       if (cancelled) return;
+      const reminders = (s?.reminders ?? []) as Reminder[];
       setMasterEnabled(!!s?.settings?.masterEnabled);
-      setReminderCount(s?.reminders?.length ?? 0);
+      setReminderCount(reminders.length);
+      setInitialReminders(reminders);
       setBooted(true);
     }).catch(() => setBooted(true));
     return () => { cancelled = true; };
@@ -264,9 +267,18 @@ export function App() {
               <div
                 key={item.key}
                 className={'sidebarItem' + (tab === item.key ? ' active' : '')}
+                role="button"
+                tabIndex={0}
                 onClick={() => {
                   if (item.key !== 'create') setEditing(null);
                   setTab(item.key);
+                }}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    if (item.key !== 'create') setEditing(null);
+                    setTab(item.key);
+                  }
                 }}
               >
                 <span className="sidebarIcon">{item.icon}</span>
@@ -323,6 +335,7 @@ export function App() {
               <div className="remScroll">
                 <React.Suspense fallback={<div style={{ padding: 24, opacity: 0.7 }}>Loading...</div>}>
                   <ReminderList
+                    initialReminders={initialReminders}
                     onEdit={r => { setEditing(r); setTab('create'); }}
                     onCountChange={setReminderCount}
                   />

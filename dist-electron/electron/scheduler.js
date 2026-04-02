@@ -22,9 +22,6 @@ function msUntilNextFixedDaily(hour, minute, now = new Date()) {
     }
     return target.getTime() - now.getTime();
 }
-function isFixedOnce(reminder) {
-    return reminder.schedule.type === 'fixedDaily' && reminder.schedule.repeat === 'once';
-}
 function isFixedOnceReminder(reminder) {
     return (reminder.schedule.type === 'fixedDaily' &&
         reminder.schedule.repeat === 'once');
@@ -40,8 +37,10 @@ function msUntilNextFixedDailyAt(hour, minute, nowMs = Date.now()) {
 class ReminderScheduler {
     entries = new Map();
     onTrigger;
-    constructor(onTrigger) {
+    onStateChanged;
+    constructor(onTrigger, opts) {
         this.onTrigger = onTrigger;
+        this.onStateChanged = opts?.onStateChanged;
     }
     stopAll() {
         for (const e of this.entries.values())
@@ -76,6 +75,10 @@ class ReminderScheduler {
                     schedule: { ...reminder.schedule, onceAt: nextAt },
                 };
                 (0, store_1.upsertReminder)(next);
+                try {
+                    this.onStateChanged?.();
+                }
+                catch { /* ignore */ }
                 effectiveReminder = next;
             }
         }
@@ -98,6 +101,10 @@ class ReminderScheduler {
                         // right after triggering the popup.
                         setTimeout(() => {
                             (0, store_1.upsertReminder)({ ...effectiveReminder, enabled: false });
+                            try {
+                                this.onStateChanged?.();
+                            }
+                            catch { /* ignore */ }
                         }, 0);
                     }
                     this.entries.delete(reminder.id);

@@ -12,4 +12,9 @@ electron_1.contextBridge.exposeInMainWorld('reminder', {
     minimizeWindow: async () => electron_1.ipcRenderer.invoke('window:minimize'),
     closeWindow: async () => electron_1.ipcRenderer.invoke('window:close'),
     quitApp: async () => electron_1.ipcRenderer.invoke('quit-app'),
+    onStateChanged: (cb) => {
+        const handler = () => cb();
+        electron_1.ipcRenderer.on('state:changed', handler);
+        return () => electron_1.ipcRenderer.removeListener('state:changed', handler);
+    },
 });
