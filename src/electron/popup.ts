@@ -208,9 +208,7 @@ function maybeQueueFocusFallback(win: BrowserWindow) {
 
 function createPopupForReminder(reminder: Reminder) {
   const wasEmpty = !isReminderPopupActive()
-  const cursorPoint = screen.getCursorScreenPoint()
-  const targetDisplay = screen.getDisplayNearestPoint(cursorPoint)
-  const { bounds } = targetDisplay
+  const { bounds } = screen.getPrimaryDisplay()
   const devIconPath = path.join(process.cwd(), "build", "icons", "win", "icon.ico")
   const packagedIconPath = path.join(process.resourcesPath, "icon.ico")
   const popupIconPath = app.isPackaged ? packagedIconPath : devIconPath

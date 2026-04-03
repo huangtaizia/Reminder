@@ -205,9 +205,7 @@ function maybeQueueFocusFallback(win) {
 }
 function createPopupForReminder(reminder) {
     const wasEmpty = !isReminderPopupActive();
-    const cursorPoint = electron_1.screen.getCursorScreenPoint();
-    const targetDisplay = electron_1.screen.getDisplayNearestPoint(cursorPoint);
-    const { bounds } = targetDisplay;
+    const { bounds } = electron_1.screen.getPrimaryDisplay();
     const devIconPath = node_path_1.default.join(process.cwd(), "build", "icons", "win", "icon.ico");
     const packagedIconPath = node_path_1.default.join(process.resourcesPath, "icon.ico");
     const popupIconPath = electron_1.app.isPackaged ? packagedIconPath : devIconPath;
