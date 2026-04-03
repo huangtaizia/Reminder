@@ -18,6 +18,7 @@ const isDev = !app.isPackaged;
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let scheduler: ReminderScheduler | undefined = undefined;
+let isQuitting = false;
 
 console.log("DIR:", __dirname);
 
@@ -39,13 +40,17 @@ function ensureDataDir(): string {
 }
 
 function createMainWindow() {
+  const devIconPath = path.join(process.cwd(), 'build', 'icons', 'win', 'icon.ico');
+  const packagedIconPath = path.join(process.resourcesPath, 'icon.ico');
+  const windowIconPath = app.isPackaged ? packagedIconPath : devIconPath;
+
   mainWindow = new BrowserWindow({
     width: 1240,
     height: 840,
     minWidth: 1240,
     minHeight: 840,
     resizable: true,
-    icon: path.join(__dirname, '../../build/icons/icon.ico'),
+    icon: fs.existsSync(windowIconPath) ? windowIconPath : undefined,
     backgroundColor: '#0B1326',
     show: false,
     webPreferences: {
@@ -69,6 +74,42 @@ function createMainWindow() {
   }
 
   app.on("before-quit", () => {});
+}
+
+function clearAppCacheFiles() {
+  const userDataDir = app.getPath('userData');
+  const cacheRoots = [
+    path.join(userDataDir, 'cache'),
+    path.join(userDataDir, 'Cache'),
+    path.join(userDataDir, 'Code Cache'),
+    path.join(userDataDir, 'GPUCache'),
+    path.join(userDataDir, 'DawnCache'),
+    path.join(userDataDir, 'GrShaderCache'),
+    path.join(userDataDir, 'ShaderCache'),
+    path.join(userDataDir, 'Service Worker', 'CacheStorage'),
+  ];
+  for (const p of cacheRoots) {
+    try {
+      fs.rmSync(p, { recursive: true, force: true });
+    } catch {
+      // ignore
+    }
+  }
+}
+
+async function quitAppAndClearCache() {
+  if (isQuitting) return;
+  isQuitting = true;
+  try {
+    await session.defaultSession.clearCache();
+    await session.defaultSession.clearStorageData({
+      storages: ['cachestorage', 'shadercache'],
+    });
+  } catch {
+    // ignore
+  }
+  clearAppCacheFiles();
+  app.quit();
 }
 
 function createTray() {
@@ -103,7 +144,7 @@ function createTray() {
     { type: "separator" },
     {
       label: "Thoát",
-      click: () => { app.quit(); },
+      click: () => { void quitAppAndClearCache(); },
     },
   ]);
 
@@ -129,7 +170,9 @@ function logPaths() {
 }
 
 app.whenReady().then(async () => {
-  app.setAppUserModelId("com.reminder.app");
+  // Keep this aligned with electron-builder build.appId for correct
+  // taskbar pin/group identity and icon resolution on Windows.
+  app.setAppUserModelId("com.hhv.reminder");
 
   // ── Clear cache khi phát hiện version mới ──
   const currentVersion = app.getVersion();
@@ -170,8 +213,9 @@ app.whenReady().then(async () => {
   createMainWindow();
   createTray();
 
-  ipcMain.handle('quit-app', () => {
-    app.quit();
+  ipcMain.handle('quit-app', async () => {
+    await quitAppAndClearCache();
+    return true;
   });
 
   scheduler.rescheduleAll(state.reminders, state.settings.masterEnabled);

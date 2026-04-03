@@ -8,8 +8,9 @@ exports.showReminderPopup = showReminderPopup;
 exports.previewReminder = previewReminder;
 const electron_1 = require("electron");
 const node_path_1 = __importDefault(require("node:path"));
-// Stack toàn cục — popup mới nhất ở cuối
-let popups = [];
+let activePopupWin = null;
+let activeReminderId = null;
+let popupQueue = [];
 // Shared dim overlay (tạo 1 lần, dùng chung cho toàn bộ stack) — chỉ màn hình chính
 let dimWins = [];
 // Fullscreen click-capture trên màn hình phụ (không dim, chỉ chặn click ra app khác)
@@ -17,25 +18,19 @@ let blockerWins = [];
 let focusGuardsEnabled = false;
 let previewQueue = Promise.resolve();
 let focusReclaimSeq = 0;
-let sustainedReclaimTimer = null;
 // Store window ids we forced ignore mouse while popup stack active.
 const ignoredMouseWinIds = new Set();
 function clamp(n, min, max) {
     return Math.max(min, Math.min(max, n));
 }
-// Kiểm tra window có thuộc bất kỳ popup nào không
 function isAnyPopupWindow(w) {
-    return popups.some(p => p.mainWin === w) || dimWins.includes(w) || blockerWins.includes(w);
-}
-// Popup active nhất (trên cùng stack) — là popup cần giữ focus
-function topPopup() {
-    return popups.length > 0 ? popups[popups.length - 1] : null;
+    return w === activePopupWin || dimWins.includes(w) || blockerWins.includes(w);
 }
 function isReminderPopupActive() {
-    return popups.length > 0;
+    return !!activePopupWin && !activePopupWin.isDestroyed();
 }
 function syncMouseIgnore() {
-    if (popups.length === 0) {
+    if (!isReminderPopupActive()) {
         for (const id of ignoredMouseWinIds) {
             const w = electron_1.BrowserWindow.fromId(id);
             if (w && !w.isDestroyed())
@@ -77,7 +72,7 @@ function ensureDimWins() {
         webPreferences: { contextIsolation: false },
     });
     dimWin.setIgnoreMouseEvents(false);
-    dimWin.setAlwaysOnTop(true, "screen-saver", 1);
+    dimWin.setAlwaysOnTop(true, "screen-saver");
     dimWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
     const dimPath = electron_1.app.isPackaged
         ? node_path_1.default.join(process.resourcesPath, "popup-dim.html")
@@ -122,7 +117,7 @@ function ensureBlockerWins() {
             webPreferences: { contextIsolation: false },
         });
         win.setIgnoreMouseEvents(false);
-        win.setAlwaysOnTop(true, "screen-saver", 1);
+        win.setAlwaysOnTop(true, "screen-saver");
         win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
         win.setFocusable(false);
         win.loadFile(blockerPath);
@@ -140,61 +135,43 @@ function destroyBlockerWins() {
     }
     blockerWins = [];
 }
-function stopSustainedReclaim() {
-    if (sustainedReclaimTimer) {
-        clearInterval(sustainedReclaimTimer);
-        sustainedReclaimTimer = null;
-    }
-}
 function reclaimTopNow() {
-    const top = topPopup();
-    if (!top || top.mainWin.isDestroyed())
+    const win = activePopupWin;
+    if (!win || win.isDestroyed())
         return;
-    top.mainWin.setAlwaysOnTop(true, "screen-saver", 100);
-    top.mainWin.moveTop();
-    if (!top.mainWin.isVisible())
-        top.mainWin.show();
-    top.mainWin.focus();
-    top.mainWin.webContents.focus();
-}
-function startSustainedReclaim(durationMs = 4000, intervalMs = 180) {
-    stopSustainedReclaim();
-    const startedAt = Date.now();
-    sustainedReclaimTimer = setInterval(() => {
-        if (popups.length === 0 || (Date.now() - startedAt) > durationMs) {
-            stopSustainedReclaim();
-            return;
-        }
-        reclaimTopNow();
-    }, intervalMs);
+    // AV-safe mode: avoid foreground-steal APIs and just maintain z-order inside app.
+    win.setAlwaysOnTop(true, "screen-saver");
+    win.moveTop();
+    if (!win.isVisible())
+        win.show();
+    win.focus();
+    win.webContents.focus();
 }
 function queueTopFocusReclaim(delays = [0, 80, 180]) {
-    const top = topPopup();
-    if (!top || top.mainWin.isDestroyed())
+    const win = activePopupWin;
+    if (!win || win.isDestroyed())
         return;
     const reclaimSeq = ++focusReclaimSeq;
     for (const delay of delays) {
         setTimeout(() => {
             if (reclaimSeq !== focusReclaimSeq)
                 return;
-            const currentTop = topPopup();
-            if (!currentTop || currentTop.mainWin !== top.mainWin || top.mainWin.isDestroyed())
+            if (!activePopupWin || activePopupWin !== win || win.isDestroyed())
                 return;
             reclaimTopNow();
         }, delay);
     }
 }
 function onBrowserWindowFocus(_e, focusedWin) {
-    const top = topPopup();
-    if (!top || top.mainWin.isDestroyed())
+    const win = activePopupWin;
+    if (!win || win.isDestroyed())
         return;
-    if (focusedWin === top.mainWin || isAnyPopupWindow(focusedWin))
+    if (focusedWin === win || isAnyPopupWindow(focusedWin))
         return;
     queueTopFocusReclaim([30, 110, 220]);
 }
 function onAppActivate() {
     queueTopFocusReclaim([0, 60, 150]);
-    startSustainedReclaim(2200, 170);
 }
 function startFocusGuards() {
     if (focusGuardsEnabled)
@@ -208,22 +185,36 @@ function stopFocusGuards() {
         return;
     focusGuardsEnabled = false;
     focusReclaimSeq++;
-    stopSustainedReclaim();
     electron_1.app.removeListener("browser-window-focus", onBrowserWindowFocus);
     electron_1.app.removeListener("activate", onAppActivate);
 }
 function isTopWindow(win) {
-    return topPopup()?.mainWin === win;
+    return activePopupWin === win;
 }
-function showReminderPopup(reminder) {
-    // Keep stacking even when multiple reminders trigger close to each other.
-    const instanceId = reminder.id;
-    const primary = electron_1.screen.getPrimaryDisplay();
-    const { bounds } = primary;
+function maybeQueueFocusFallback(win) {
+    // If focus fails (common with Teams foreground), keep popup in Alt-Tab near top.
+    setTimeout(() => {
+        if (win.isDestroyed())
+            return;
+        const focused = electron_1.BrowserWindow.getFocusedWindow();
+        if (focused !== win) {
+            win.showInactive();
+            win.flashFrame(true);
+        }
+    }, 220);
+}
+function createPopupForReminder(reminder) {
+    const wasEmpty = !isReminderPopupActive();
+    const cursorPoint = electron_1.screen.getCursorScreenPoint();
+    const targetDisplay = electron_1.screen.getDisplayNearestPoint(cursorPoint);
+    const { bounds } = targetDisplay;
+    const devIconPath = node_path_1.default.join(process.cwd(), "build", "icons", "win", "icon.ico");
+    const packagedIconPath = node_path_1.default.join(process.resourcesPath, "icon.ico");
+    const popupIconPath = electron_1.app.isPackaged ? packagedIconPath : devIconPath;
     const popupPath = electron_1.app.isPackaged
         ? node_path_1.default.join(process.resourcesPath, "popup.html")
         : node_path_1.default.join(process.cwd(), "public", "popup.html");
-    const offset = popups.length * 24;
+    const offset = 0;
     const mainWin = new electron_1.BrowserWindow({
         width: bounds.width,
         height: bounds.height,
@@ -233,15 +224,19 @@ function showReminderPopup(reminder) {
         transparent: true,
         resizable: false,
         movable: false,
-        skipTaskbar: true,
+        // AV-safe + usability: allow Alt-Tab focus directly to popup.
+        skipTaskbar: false,
+        icon: popupIconPath,
         focusable: true,
         show: false,
         webPreferences: {
             contextIsolation: true,
         }
     });
-    mainWin.setAlwaysOnTop(true, "screen-saver", 100);
+    mainWin.setAlwaysOnTop(true, "screen-saver");
     mainWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    activePopupWin = mainWin;
+    activeReminderId = reminder.id;
     const closeThis = () => {
         if (!mainWin.isDestroyed())
             mainWin.close();
@@ -255,28 +250,26 @@ function showReminderPopup(reminder) {
     //   }
     // })
     mainWin.on("blur", () => {
-        if (topPopup()?.mainWin !== mainWin)
+        if (activePopupWin !== mainWin)
             return;
-        // Reclaim theo nhịp vừa phải để tránh nhấp nháy khi hệ thống UI tạm giữ focus.
+        // Short reclaim only; no infinite pulse in AV-safe mode.
         queueTopFocusReclaim([90, 180, 320]);
-        startSustainedReclaim(4200, 160);
     });
-    // ✅ FIX CLOSED (đúng syntax)
     mainWin.on("closed", () => {
-        popups = popups.filter(p => p.mainWin !== mainWin);
+        if (activePopupWin === mainWin) {
+            activePopupWin = null;
+            activeReminderId = null;
+        }
         syncMouseIgnore();
-        if (popups.length === 0) {
+        if (popupQueue.length === 0) {
             destroyDimWins();
             destroyBlockerWins();
             stopFocusGuards();
             return;
         }
-        const newTop = topPopup();
-        if (newTop && !newTop.mainWin.isDestroyed()) {
-            newTop.mainWin.moveTop();
-            newTop.mainWin.focus();
-            newTop.mainWin.webContents.focus();
-        }
+        const next = popupQueue.shift();
+        if (next)
+            createPopupForReminder(next.reminder);
     });
     // mainWin.webContents.on("before-input-event", (_e, input) => {
     //   if (input.key === "Escape") closeThis()
@@ -314,18 +307,22 @@ function showReminderPopup(reminder) {
             return;
         mainWin.show();
         queueTopFocusReclaim([40, 120, 220]);
-        startSustainedReclaim(2200, 170);
+        maybeQueueFocusFallback(mainWin);
     });
-    const wasEmpty = popups.length === 0;
     if (wasEmpty) {
         ensureDimWins();
         ensureBlockerWins();
-    }
-    popups.push({ mainWin, reminderId: instanceId });
-    syncMouseIgnore();
-    if (wasEmpty)
         startFocusGuards();
+    }
+    syncMouseIgnore();
     return mainWin;
+}
+function showReminderPopup(reminder) {
+    if (isReminderPopupActive()) {
+        popupQueue.push({ reminder });
+        return activePopupWin ?? undefined;
+    }
+    return createPopupForReminder(reminder);
 }
 function waitForClosed(win) {
     if (win.isDestroyed())
@@ -336,9 +333,12 @@ function waitForClosed(win) {
     });
 }
 async function previewReminderInternal(reminder) {
-    const closing = popups.map(p => waitForClosed(p.mainWin));
-    await Promise.allSettled(closing);
-    popups = [];
+    if (activePopupWin && !activePopupWin.isDestroyed()) {
+        await waitForClosed(activePopupWin);
+    }
+    popupQueue = [];
+    activePopupWin = null;
+    activeReminderId = null;
     syncMouseIgnore();
     destroyDimWins();
     destroyBlockerWins();

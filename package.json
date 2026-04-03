@@ -5,7 +5,8 @@
   "main": "dist-electron/electron/main.js",
   "scripts": {
     "dev": "concurrently -k \"tsc -p tsconfig.electron.json -w\" \"vite\" \"wait-on dist-electron/electron/main.js && electron .\"",
-    "build": "node -e \"const fs=require('node:fs'); for (const d of ['dist-electron','dist']) fs.rmSync(d,{recursive:true,force:true});\" && npx tsc -p tsconfig.electron.json && vite build && electron-builder --win portable",
+    "build": "node -e \"const fs=require('node:fs'); for (const d of ['dist-electron','dist','release/win-unpacked','.cache/electron-builder-portable','.cache/nsis-binaries','.cache/nsis-resources']) fs.rmSync(d,{recursive:true,force:true}); fs.mkdirSync('.cache/nsis-binaries',{recursive:true}); fs.mkdirSync('.cache/nsis-resources',{recursive:true});\" && npx tsc -p tsconfig.electron.json && npx vite build && powershell -NoProfile -Command \"Invoke-WebRequest -Uri 'https://cdn.npmmirror.com/binaries/electron-builder-binaries/nsis-3.0.4.1/nsis-3.0.4.1.7z' -OutFile '.cache/nsis-binaries.7z'; Invoke-WebRequest -Uri 'https://cdn.npmmirror.com/binaries/electron-builder-binaries/nsis-resources-3.4.1/nsis-resources-3.4.1.7z' -OutFile '.cache/nsis-resources.7z'\" && \"node_modules/7zip-bin/win/x64/7za.exe\" x -y \".cache/nsis-binaries.7z\" -o\".cache/nsis-binaries\" && \"node_modules/7zip-bin/win/x64/7za.exe\" x -y \".cache/nsis-resources.7z\" -o\".cache/nsis-resources\" && npx cross-env ELECTRON_BUILDER_CACHE=\"d:/Reminder/.cache/electron-builder-portable\" ELECTRON_BUILDER_NSIS_DIR=\"d:/Reminder/.cache/nsis-binaries\" ELECTRON_BUILDER_NSIS_RESOURCES_DIR=\"d:/Reminder/.cache/nsis-resources\" electron-builder --win portable",
+    "build:portable": "node -e \"const fs=require('node:fs'); for (const d of ['dist-electron','dist','release/win-unpacked','.cache/electron-builder-portable','.cache/nsis-binaries','.cache/nsis-resources']) fs.rmSync(d,{recursive:true,force:true}); fs.mkdirSync('.cache/nsis-binaries',{recursive:true}); fs.mkdirSync('.cache/nsis-resources',{recursive:true});\" && npx tsc -p tsconfig.electron.json && npx vite build && powershell -NoProfile -Command \"Invoke-WebRequest -Uri 'https://cdn.npmmirror.com/binaries/electron-builder-binaries/nsis-3.0.4.1/nsis-3.0.4.1.7z' -OutFile '.cache/nsis-binaries.7z'; Invoke-WebRequest -Uri 'https://cdn.npmmirror.com/binaries/electron-builder-binaries/nsis-resources-3.4.1/nsis-resources-3.4.1.7z' -OutFile '.cache/nsis-resources.7z'\" && \"node_modules/7zip-bin/win/x64/7za.exe\" x -y \".cache/nsis-binaries.7z\" -o\".cache/nsis-binaries\" && \"node_modules/7zip-bin/win/x64/7za.exe\" x -y \".cache/nsis-resources.7z\" -o\".cache/nsis-resources\" && npx cross-env ELECTRON_BUILDER_CACHE=\"d:/Reminder/.cache/electron-builder-portable\" ELECTRON_BUILDER_NSIS_DIR=\"d:/Reminder/.cache/nsis-binaries\" ELECTRON_BUILDER_NSIS_RESOURCES_DIR=\"d:/Reminder/.cache/nsis-resources\" electron-builder --win portable",
     "preview": "vite preview",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -23,16 +24,23 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.2.0",
     "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
     "electron": "^40.8.0",
     "electron-builder": "^26.8.1",
     "electronmon": "^2.0.4",
+    "rcedit": "^5.0.2",
     "typescript": "^5.9.3",
     "vite": "^7.3.1",
     "vite-plugin-static-copy": "^3.3.0",
     "wait-on": "^9.0.4"
   },
   "build": {
+    "artifactName": "${productName}-${version}.${ext}",
     "extraResources": [
+      {
+        "from": "build/icons/win/icon.ico",
+        "to": "icon.ico"
+      },
       {
         "from": "public/tray.png",
         "to": "tray.png"
@@ -63,9 +71,11 @@
     "asar": true,
     "win": {
       "target": [
-        "portable"
+        "zip"
       ],
-      "icon": "build/icons/win/icon.ico"
+      "icon": "build/icons/win/icon.ico",
+      "executableName": "Reminder",
+      "signAndEditExecutable": false
     }
   }
 }

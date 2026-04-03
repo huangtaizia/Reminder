@@ -2,13 +2,10 @@ import { BrowserWindow, screen, app } from "electron"
 import path from "node:path"
 import type { Reminder } from "../shared/types"
 
-type PopupEntry = {
-  mainWin: BrowserWindow
-  reminderId: string
-}
-
-// Stack toàn cục — popup mới nhất ở cuối
-let popups: PopupEntry[] = []
+type PopupEntry = { reminder: Reminder }
+let activePopupWin: BrowserWindow | null = null
+let activeReminderId: string | null = null
+let popupQueue: PopupEntry[] = []
 
 // Shared dim overlay (tạo 1 lần, dùng chung cho toàn bộ stack) — chỉ màn hình chính
 let dimWins: BrowserWindow[] = []
@@ -19,7 +16,6 @@ let blockerWins: BrowserWindow[] = []
 let focusGuardsEnabled = false
 let previewQueue: Promise<void> = Promise.resolve()
 let focusReclaimSeq = 0
-let sustainedReclaimTimer: NodeJS.Timeout | null = null
 
 // Store window ids we forced ignore mouse while popup stack active.
 const ignoredMouseWinIds = new Set<number>()
@@ -30,22 +26,16 @@ function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n))
 }
 
-// Kiểm tra window có thuộc bất kỳ popup nào không
 function isAnyPopupWindow(w: BrowserWindow): boolean {
-  return popups.some(p => p.mainWin === w) || dimWins.includes(w) || blockerWins.includes(w)
-}
-
-// Popup active nhất (trên cùng stack) — là popup cần giữ focus
-function topPopup(): PopupEntry | null {
-  return popups.length > 0 ? popups[popups.length - 1] : null
+  return w === activePopupWin || dimWins.includes(w) || blockerWins.includes(w)
 }
 
 export function isReminderPopupActive(): boolean {
-  return popups.length > 0
+  return !!activePopupWin && !activePopupWin.isDestroyed()
 }
 
 function syncMouseIgnore() {
-  if (popups.length === 0) {
+  if (!isReminderPopupActive()) {
     for (const id of ignoredMouseWinIds) {
       const w = BrowserWindow.fromId(id)
       if (w && !w.isDestroyed()) w.setIgnoreMouseEvents(false)
@@ -85,7 +75,7 @@ function ensureDimWins() {
   })
 
   dimWin.setIgnoreMouseEvents(false)
-  dimWin.setAlwaysOnTop(true, "screen-saver", 1)
+  dimWin.setAlwaysOnTop(true, "screen-saver")
   dimWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
 
   const dimPath = app.isPackaged
@@ -130,7 +120,7 @@ function ensureBlockerWins() {
       webPreferences: { contextIsolation: false },
     })
     win.setIgnoreMouseEvents(false)
-    win.setAlwaysOnTop(true, "screen-saver", 1)
+    win.setAlwaysOnTop(true, "screen-saver")
     win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
     win.setFocusable(false)
     win.loadFile(blockerPath)
@@ -148,45 +138,26 @@ function destroyBlockerWins() {
   blockerWins = []
 }
 
-function stopSustainedReclaim() {
-  if (sustainedReclaimTimer) {
-    clearInterval(sustainedReclaimTimer)
-    sustainedReclaimTimer = null
-  }
-}
-
 function reclaimTopNow() {
-  const top = topPopup()
-  if (!top || top.mainWin.isDestroyed()) return
-  top.mainWin.setAlwaysOnTop(true, "screen-saver", 100)
-  top.mainWin.moveTop()
-  if (!top.mainWin.isVisible()) top.mainWin.show()
-  top.mainWin.focus()
-  top.mainWin.webContents.focus()
-}
-
-function startSustainedReclaim(durationMs = 4000, intervalMs = 180) {
-  stopSustainedReclaim()
-  const startedAt = Date.now()
-  sustainedReclaimTimer = setInterval(() => {
-    if (popups.length === 0 || (Date.now() - startedAt) > durationMs) {
-      stopSustainedReclaim()
-      return
-    }
-    reclaimTopNow()
-  }, intervalMs)
+  const win = activePopupWin
+  if (!win || win.isDestroyed()) return
+  // AV-safe mode: avoid foreground-steal APIs and just maintain z-order inside app.
+  win.setAlwaysOnTop(true, "screen-saver")
+  win.moveTop()
+  if (!win.isVisible()) win.show()
+  win.focus()
+  win.webContents.focus()
 }
 
 function queueTopFocusReclaim(delays = [0, 80, 180]) {
-  const top = topPopup()
-  if (!top || top.mainWin.isDestroyed()) return
+  const win = activePopupWin
+  if (!win || win.isDestroyed()) return
   const reclaimSeq = ++focusReclaimSeq
 
   for (const delay of delays) {
     setTimeout(() => {
       if (reclaimSeq !== focusReclaimSeq) return
-      const currentTop = topPopup()
-      if (!currentTop || currentTop.mainWin !== top.mainWin || top.mainWin.isDestroyed()) return
+      if (!activePopupWin || activePopupWin !== win || win.isDestroyed()) return
 
       reclaimTopNow()
     }, delay)
@@ -194,15 +165,14 @@ function queueTopFocusReclaim(delays = [0, 80, 180]) {
 }
 
 function onBrowserWindowFocus(_e: Electron.Event, focusedWin: BrowserWindow) {
-  const top = topPopup()
-  if (!top || top.mainWin.isDestroyed()) return
-  if (focusedWin === top.mainWin || isAnyPopupWindow(focusedWin)) return
+  const win = activePopupWin
+  if (!win || win.isDestroyed()) return
+  if (focusedWin === win || isAnyPopupWindow(focusedWin)) return
   queueTopFocusReclaim([30, 110, 220])
 }
 
 function onAppActivate() {
   queueTopFocusReclaim([0, 60, 150])
-  startSustainedReclaim(2200, 170)
 }
 
 function startFocusGuards() {
@@ -216,26 +186,40 @@ function stopFocusGuards() {
   if (!focusGuardsEnabled) return
   focusGuardsEnabled = false
   focusReclaimSeq++
-  stopSustainedReclaim()
   app.removeListener("browser-window-focus", onBrowserWindowFocus)
   app.removeListener("activate", onAppActivate)
 }
 
 function isTopWindow(win: BrowserWindow) {
-  return topPopup()?.mainWin === win
+  return activePopupWin === win
 }
 
-export function showReminderPopup(reminder: Reminder) {
-  // Keep stacking even when multiple reminders trigger close to each other.
-  const instanceId = reminder.id
-  const primary = screen.getPrimaryDisplay()
-  const { bounds } = primary
+function maybeQueueFocusFallback(win: BrowserWindow) {
+  // If focus fails (common with Teams foreground), keep popup in Alt-Tab near top.
+  setTimeout(() => {
+    if (win.isDestroyed()) return
+    const focused = BrowserWindow.getFocusedWindow()
+    if (focused !== win) {
+      win.showInactive()
+      win.flashFrame(true)
+    }
+  }, 220)
+}
+
+function createPopupForReminder(reminder: Reminder) {
+  const wasEmpty = !isReminderPopupActive()
+  const cursorPoint = screen.getCursorScreenPoint()
+  const targetDisplay = screen.getDisplayNearestPoint(cursorPoint)
+  const { bounds } = targetDisplay
+  const devIconPath = path.join(process.cwd(), "build", "icons", "win", "icon.ico")
+  const packagedIconPath = path.join(process.resourcesPath, "icon.ico")
+  const popupIconPath = app.isPackaged ? packagedIconPath : devIconPath
 
   const popupPath = app.isPackaged
     ? path.join(process.resourcesPath, "popup.html")
     : path.join(process.cwd(), "public", "popup.html")
 
-  const offset = popups.length * 24
+  const offset = 0
 
   const mainWin = new BrowserWindow({
     width: bounds.width,
@@ -246,7 +230,9 @@ export function showReminderPopup(reminder: Reminder) {
     transparent: true,
     resizable: false,
     movable: false,
-    skipTaskbar: true,
+    // AV-safe + usability: allow Alt-Tab focus directly to popup.
+    skipTaskbar: false,
+    icon: popupIconPath,
     focusable: true,
     show: false,
     webPreferences: {
@@ -254,8 +240,10 @@ export function showReminderPopup(reminder: Reminder) {
     }
   })
 
-  mainWin.setAlwaysOnTop(true, "screen-saver", 100)
+  mainWin.setAlwaysOnTop(true, "screen-saver")
   mainWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
+  activePopupWin = mainWin
+  activeReminderId = reminder.id
 
   const closeThis = () => {
     if (!mainWin.isDestroyed()) mainWin.close()
@@ -270,32 +258,27 @@ export function showReminderPopup(reminder: Reminder) {
   //   }
   // })
   mainWin.on("blur", () => {
-    if (topPopup()?.mainWin !== mainWin) return
+    if (activePopupWin !== mainWin) return
 
-    // Reclaim theo nhịp vừa phải để tránh nhấp nháy khi hệ thống UI tạm giữ focus.
+    // Short reclaim only; no infinite pulse in AV-safe mode.
     queueTopFocusReclaim([90, 180, 320])
-    startSustainedReclaim(4200, 160)
   })
 
-  // ✅ FIX CLOSED (đúng syntax)
   mainWin.on("closed", () => {
-    popups = popups.filter(p => p.mainWin !== mainWin)
-
+    if (activePopupWin === mainWin) {
+      activePopupWin = null
+      activeReminderId = null
+    }
     syncMouseIgnore()
 
-    if (popups.length === 0) {
+    if (popupQueue.length === 0) {
       destroyDimWins()
       destroyBlockerWins()
       stopFocusGuards()
       return
     }
-
-    const newTop = topPopup()
-    if (newTop && !newTop.mainWin.isDestroyed()) {
-      newTop.mainWin.moveTop()
-      newTop.mainWin.focus()
-      newTop.mainWin.webContents.focus()
-    }
+    const next = popupQueue.shift()
+    if (next) createPopupForReminder(next.reminder)
   })
 
   // mainWin.webContents.on("before-input-event", (_e, input) => {
@@ -334,23 +317,27 @@ export function showReminderPopup(reminder: Reminder) {
   // })
   mainWin.once("ready-to-show", () => {
     if (mainWin.isDestroyed()) return
-
     mainWin.show()
     queueTopFocusReclaim([40, 120, 220])
-    startSustainedReclaim(2200, 170)
+    maybeQueueFocusFallback(mainWin)
   })
 
-  const wasEmpty = popups.length === 0
   if (wasEmpty) {
     ensureDimWins()
     ensureBlockerWins()
+    startFocusGuards()
   }
 
-  popups.push({ mainWin, reminderId: instanceId })
   syncMouseIgnore()
-  if (wasEmpty) startFocusGuards()
-
   return mainWin
+}
+
+export function showReminderPopup(reminder: Reminder) {
+  if (isReminderPopupActive()) {
+    popupQueue.push({ reminder })
+    return activePopupWin ?? undefined
+  }
+  return createPopupForReminder(reminder)
 }
 
 function waitForClosed(win: BrowserWindow): Promise<void> {
@@ -362,10 +349,12 @@ function waitForClosed(win: BrowserWindow): Promise<void> {
 }
 
 async function previewReminderInternal(reminder: Reminder) {
-  const closing = popups.map(p => waitForClosed(p.mainWin))
-  await Promise.allSettled(closing)
-
-  popups = []
+  if (activePopupWin && !activePopupWin.isDestroyed()) {
+    await waitForClosed(activePopupWin)
+  }
+  popupQueue = []
+  activePopupWin = null
+  activeReminderId = null
   syncMouseIgnore()
   destroyDimWins()
   destroyBlockerWins()
