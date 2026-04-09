@@ -29,7 +29,10 @@ function renderIcon(iconValue: string, active: boolean): React.ReactNode {
 function scheduleLabel(r: Reminder): string {
   if (r.schedule.type === 'interval') {
     const min = Math.round(r.schedule.intervalMs / 60_000);
-    return min >= 60 ? `Every ${min / 60}h` : `Every ${min} min`;
+    if (min < 60) return `Every ${min} min`;
+    const hours = Math.floor(min / 60);
+    const minutes = min % 60;
+    return minutes === 0 ? `Every ${hours}h` : `Every ${hours}h ${minutes}m`;
   }
   const hh = String(r.schedule.hour).padStart(2, '0');
   const mm = String(r.schedule.minute).padStart(2, '0');
