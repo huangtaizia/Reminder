@@ -5,7 +5,7 @@ import { broadcastStateChanged, registerIpc } from './ipc';
 import { ReminderScheduler } from './scheduler';
 import { readState, setSettings } from './store';
 import { isReminderPopupActive, showReminderPopup } from './popup';
-import { setAutostartEnabled } from './autostart';
+import { hasArg, setAutostartEnabled } from './autostart';
 
 const dataDir = path.join(app.getPath('appData'), 'Reminder')
 
@@ -39,7 +39,7 @@ function ensureDataDir(): string {
   }
 }
 
-function createMainWindow() {
+function createMainWindow(showOnReady: boolean) {
   const devIconPath = path.join(process.cwd(), 'build', 'icons', 'win', 'icon.ico');
   const packagedIconPath = path.join(process.resourcesPath, 'icon.ico');
   const windowIconPath = app.isPackaged ? packagedIconPath : devIconPath;
@@ -63,6 +63,7 @@ function createMainWindow() {
   });
 
   mainWindow.once('ready-to-show', () => {
+    if (!showOnReady) return;
     mainWindow?.show();
   });
 
@@ -134,7 +135,7 @@ function createTray() {
         // When reminder popup is active, keep focus locked on the popup.
         if (isReminderPopupActive()) return;
         if (!mainWindow || mainWindow.isDestroyed()) {
-          createMainWindow();
+          createMainWindow(true);
           return;
         }
         mainWindow.show();
@@ -154,7 +155,7 @@ function createTray() {
   tray.on("double-click", () => {
     if (isReminderPopupActive()) return;
     if (!mainWindow || mainWindow.isDestroyed()) {
-      createMainWindow();
+      createMainWindow(true);
       return;
     }
     mainWindow.show();
@@ -194,11 +195,16 @@ app.whenReady().then(async () => {
   }, { onStateChanged: broadcastStateChanged });
 
   const state = readState();
+  const launchedByAutostart = hasArg('--autostart');
+  const forceMinimized = hasArg('--minimized');
+  const shouldStartHidden = forceMinimized || (launchedByAutostart && !!state.settings.startMinimized);
 
   setAutostartEnabled(
     !!state.settings.runOnStartup,
     { startMinimized: !!state.settings.startMinimized }
-  ).catch(() => {});
+  ).catch((err) => {
+    console.warn('[Reminder] Failed to sync startup setting:', err);
+  });
 
   registerIpc({
     scheduler,
@@ -206,11 +212,13 @@ app.whenReady().then(async () => {
       setAutostartEnabled(
         !!s.runOnStartup,
         { startMinimized: !!s.startMinimized }
-      ).catch(() => {});
+      ).catch((err) => {
+        console.warn('[Reminder] Failed to update startup setting:', err);
+      });
     },
   });
 
-  createMainWindow();
+  createMainWindow(!shouldStartHidden);
   createTray();
 
   ipcMain.handle('quit-app', async () => {
@@ -221,7 +229,7 @@ app.whenReady().then(async () => {
   scheduler.rescheduleAll(state.reminders, state.settings.masterEnabled);
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createMainWindow();
+    if (BrowserWindow.getAllWindows().length === 0) createMainWindow(true);
   });
 });
 

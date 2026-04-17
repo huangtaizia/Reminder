@@ -2,6 +2,10 @@ import { contextBridge, ipcRenderer } from 'electron';
 contextBridge.exposeInMainWorld('reminder', {
   ping: async () => ipcRenderer.invoke('reminder:ping'),
   getState: async () => ipcRenderer.invoke('state:get'),
+  getAppVersion: async () => ipcRenderer.invoke('app:getVersion'),
+  checkForUpdates: async () => ipcRenderer.invoke('update:check'),
+  openDownloadUrl: async (url: string) => ipcRenderer.invoke('update:openDownload', url),
+  getAutostartStatus: async () => ipcRenderer.invoke('autostart:status'),
   resetAll: async () => ipcRenderer.invoke('state:resetAll'),
   setSettings: async (partial: any) => ipcRenderer.invoke('settings:set', partial),
   upsertReminder: async (reminder: any) => ipcRenderer.invoke('reminder:upsert', reminder),

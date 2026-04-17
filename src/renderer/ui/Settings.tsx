@@ -15,7 +15,13 @@ function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) =>
   );
 }
 
-export function Settings() {
+export function Settings({
+  appVersion,
+  onCheckForUpdates,
+}: {
+  appVersion: string | null;
+  onCheckForUpdates: () => void;
+}) {
   const [autostart, setAutostart] = React.useState(false);
   const [startMinimized, setStartMinimized] = React.useState(false);
 
@@ -35,14 +41,41 @@ export function Settings() {
             <div className="settingTitle">Chạy khi khởi động Windows</div>
             <div className="settingDesc">Tự động mở khi bật máy tính</div>
           </div>
-          <Toggle value={autostart} onChange={v => { setAutostart(v); window.reminder.setSettings({ runOnStartup: v }); }} />
+          <Toggle value={autostart} onChange={v => {
+            setAutostart(v);
+            window.reminder.setSettings({ runOnStartup: v });
+          }} />
         </div>
         <div className="settingRow">
           <div className="settingInfo">
             <div className="settingTitle">Khởi động thu nhỏ</div>
             <div className="settingDesc">Ẩn cửa sổ khi khởi động, chạy dưới tray</div>
           </div>
-          <Toggle value={startMinimized} onChange={v => { setStartMinimized(v); window.reminder.setSettings({ startMinimized: v }); }} />
+          <Toggle value={startMinimized} onChange={v => {
+            setStartMinimized(v);
+            window.reminder.setSettings({ startMinimized: v });
+          }} />
+        </div>
+      </div>
+
+      <div className="settingsSectionLabel">Cập nhật</div>
+      <div className="settingsList">
+        <div className="settingRow" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 12 }}>
+          <div className="settingInfo">
+            <div className="settingTitle">Phiên bản hiện tại</div>
+            <div className="settingDesc">
+              {appVersion ?? 'Đang tải…'} — Kiểm tra bản portable mới (máy chủ cập nhật được tích hợp sẵn trong bản cài).
+            </div>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <button
+              type="button"
+              className="btn primary"
+              onClick={onCheckForUpdates}
+            >
+              Kiểm tra cập nhật
+            </button>
+          </div>
         </div>
       </div>
 

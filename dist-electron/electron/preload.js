@@ -4,6 +4,10 @@ const electron_1 = require("electron");
 electron_1.contextBridge.exposeInMainWorld('reminder', {
     ping: async () => electron_1.ipcRenderer.invoke('reminder:ping'),
     getState: async () => electron_1.ipcRenderer.invoke('state:get'),
+    getAppVersion: async () => electron_1.ipcRenderer.invoke('app:getVersion'),
+    checkForUpdates: async () => electron_1.ipcRenderer.invoke('update:check'),
+    openDownloadUrl: async (url) => electron_1.ipcRenderer.invoke('update:openDownload', url),
+    getAutostartStatus: async () => electron_1.ipcRenderer.invoke('autostart:status'),
     resetAll: async () => electron_1.ipcRenderer.invoke('state:resetAll'),
     setSettings: async (partial) => electron_1.ipcRenderer.invoke('settings:set', partial),
     upsertReminder: async (reminder) => electron_1.ipcRenderer.invoke('reminder:upsert', reminder),

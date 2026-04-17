@@ -3,12 +3,22 @@ declare module '*.module.css' {
   export default classes;
 }
 
+import type { UpdateCheckResult } from '../shared/update';
+
 export {};
 declare global {
   interface Window {
     reminder: {
       ping: () => Promise<string>;
       getState: () => Promise<any>;
+      getAppVersion: () => Promise<string>;
+      checkForUpdates: () => Promise<UpdateCheckResult>;
+      openDownloadUrl: (url: string) => Promise<boolean>;
+      getAutostartStatus: () => Promise<{
+        enabledForCurrentConfig: boolean;
+        expectedArgs: string[];
+        launchItemEnabled: boolean;
+      }>;
       resetAll: () => Promise<any>;
       setSettings: (partial: any) => Promise<any>;
       upsertReminder: (reminder: any) => Promise<any>;

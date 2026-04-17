@@ -37,7 +37,7 @@ function ensureDataDir() {
         return fallback;
     }
 }
-function createMainWindow() {
+function createMainWindow(showOnReady) {
     const devIconPath = node_path_1.default.join(process.cwd(), 'build', 'icons', 'win', 'icon.ico');
     const packagedIconPath = node_path_1.default.join(process.resourcesPath, 'icon.ico');
     const windowIconPath = electron_1.app.isPackaged ? packagedIconPath : devIconPath;
@@ -59,6 +59,8 @@ function createMainWindow() {
         titleBarOverlay: false,
     });
     mainWindow.once('ready-to-show', () => {
+        if (!showOnReady)
+            return;
         mainWindow?.show();
     });
     if (isDev) {
@@ -126,7 +128,7 @@ function createTray() {
                 if ((0, popup_1.isReminderPopupActive)())
                     return;
                 if (!mainWindow || mainWindow.isDestroyed()) {
-                    createMainWindow();
+                    createMainWindow(true);
                     return;
                 }
                 mainWindow.show();
@@ -145,7 +147,7 @@ function createTray() {
         if ((0, popup_1.isReminderPopupActive)())
             return;
         if (!mainWindow || mainWindow.isDestroyed()) {
-            createMainWindow();
+            createMainWindow(true);
             return;
         }
         mainWindow.show();
@@ -181,14 +183,21 @@ electron_1.app.whenReady().then(async () => {
         (0, popup_1.showReminderPopup)(_reminder);
     }, { onStateChanged: ipc_1.broadcastStateChanged });
     const state = (0, store_1.readState)();
-    (0, autostart_1.setAutostartEnabled)(!!state.settings.runOnStartup, { startMinimized: !!state.settings.startMinimized }).catch(() => { });
+    const launchedByAutostart = (0, autostart_1.hasArg)('--autostart');
+    const forceMinimized = (0, autostart_1.hasArg)('--minimized');
+    const shouldStartHidden = forceMinimized || (launchedByAutostart && !!state.settings.startMinimized);
+    (0, autostart_1.setAutostartEnabled)(!!state.settings.runOnStartup, { startMinimized: !!state.settings.startMinimized }).catch((err) => {
+        console.warn('[Reminder] Failed to sync startup setting:', err);
+    });
     (0, ipc_1.registerIpc)({
         scheduler,
         onSettingsChanged: (s) => {
-            (0, autostart_1.setAutostartEnabled)(!!s.runOnStartup, { startMinimized: !!s.startMinimized }).catch(() => { });
+            (0, autostart_1.setAutostartEnabled)(!!s.runOnStartup, { startMinimized: !!s.startMinimized }).catch((err) => {
+                console.warn('[Reminder] Failed to update startup setting:', err);
+            });
         },
     });
-    createMainWindow();
+    createMainWindow(!shouldStartHidden);
     createTray();
     electron_1.ipcMain.handle('quit-app', async () => {
         await quitAppAndClearCache();
@@ -197,7 +206,7 @@ electron_1.app.whenReady().then(async () => {
     scheduler.rescheduleAll(state.reminders, state.settings.masterEnabled);
     electron_1.app.on('activate', () => {
         if (electron_1.BrowserWindow.getAllWindows().length === 0)
-            createMainWindow();
+            createMainWindow(true);
     });
 });
 electron_1.app.on('window-all-closed', () => {

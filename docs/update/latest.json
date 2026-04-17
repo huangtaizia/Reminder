@@ -1,0 +1,12 @@
+{
+  "version": "1.2.0",
+  "notesLines": [
+    "Reminder — bản portable Windows (com.hhv.reminder).",
+    "Khi phát hành bản mới: tăng version, tạo GitLab Release (tag vd. v1.3.0), đính kèm Reminder-{version}.exe rồi cập nhật windows.portableExe.url tương ứng."
+  ],
+  "windows": {
+    "portableExe": {
+      "url": "https://gitlab.fci.vn/hoanghv13/reminder/-/releases/v1.2.0/downloads/binaries/Reminder-1.2.0.exe"
+    }
+  }
+}

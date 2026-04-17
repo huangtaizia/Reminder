@@ -9,6 +9,8 @@ const electron_1 = require("electron");
 const node_crypto_1 = __importDefault(require("node:crypto"));
 const store_1 = require("./store");
 const popup_1 = require("./popup");
+const autostart_1 = require("./autostart");
+const updateCheck_1 = require("./updateCheck");
 function broadcastStateChanged() {
     for (const win of electron_1.BrowserWindow.getAllWindows()) {
         try {
@@ -36,6 +38,24 @@ function registerIpc(opts) {
     });
     electron_1.ipcMain.handle('state:get', async () => {
         return (0, store_1.readState)();
+    });
+    electron_1.ipcMain.handle('app:getVersion', async () => electron_1.app.getVersion());
+    electron_1.ipcMain.handle('update:check', async () => (0, updateCheck_1.checkForUpdates)());
+    electron_1.ipcMain.handle('update:openDownload', async (_e, url) => {
+        try {
+            const u = new URL(url);
+            if (u.protocol !== 'https:' && u.protocol !== 'http:')
+                return false;
+            await electron_1.shell.openExternal(url);
+            return true;
+        }
+        catch {
+            return false;
+        }
+    });
+    electron_1.ipcMain.handle('autostart:status', async () => {
+        const state = (0, store_1.readState)();
+        return (0, autostart_1.getAutostartHealth)({ startMinimized: !!state.settings.startMinimized });
     });
     electron_1.ipcMain.handle('state:resetAll', async () => {
         const next = {

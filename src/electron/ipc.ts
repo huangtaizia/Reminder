@@ -1,9 +1,11 @@
-import { BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, shell } from 'electron';
 import crypto from 'node:crypto';
 import { readState, writeState, upsertReminder, deleteReminder, setSettings } from './store';
 import type { PersistedState, Reminder } from '../shared/types';
 import type { ReminderScheduler } from './scheduler';
 import { showReminderPopup, previewReminder } from './popup';
+import { getAutostartHealth } from './autostart';
+import { checkForUpdates } from './updateCheck';
 
 type SchedulerApi = Pick<ReminderScheduler, 'rescheduleAll'>;
 
@@ -37,6 +39,26 @@ export function registerIpc(opts?: { scheduler?: SchedulerApi; onSettingsChanged
 
   ipcMain.handle('state:get', async () => {
     return readState();
+  });
+
+  ipcMain.handle('app:getVersion', async () => app.getVersion());
+
+  ipcMain.handle('update:check', async () => checkForUpdates());
+
+  ipcMain.handle('update:openDownload', async (_e, url: string) => {
+    try {
+      const u = new URL(url);
+      if (u.protocol !== 'https:' && u.protocol !== 'http:') return false;
+      await shell.openExternal(url);
+      return true;
+    } catch {
+      return false;
+    }
+  });
+
+  ipcMain.handle('autostart:status', async () => {
+    const state = readState();
+    return getAutostartHealth({ startMinimized: !!state.settings.startMinimized });
   });
 
   ipcMain.handle('state:resetAll', async () => {

@@ -1,5 +1,7 @@
 import React from 'react';
 import type { Reminder } from '../../shared/types';
+import type { UpdateCheckResult } from '../../shared/update';
+import { UpdateModal } from './UpdateModal';
 
 const ReminderList = React.lazy(() =>
   import('./ReminderList').then(m => ({ default: m.ReminderList }))
@@ -191,6 +193,57 @@ export function App() {
   const [showCloseDialog, setShowCloseDialog] = React.useState(false);
   const [reminderCount, setReminderCount] = React.useState(0);
   const [initialReminders, setInitialReminders] = React.useState<Reminder[] | null>(null);
+  const [appVersion, setAppVersion] = React.useState<string | null>(null);
+  const [updateModalOpen, setUpdateModalOpen] = React.useState(false);
+  const [updateChecking, setUpdateChecking] = React.useState(false);
+  const [updateResult, setUpdateResult] = React.useState<UpdateCheckResult | null>(null);
+  const [updateBadge, setUpdateBadge] = React.useState(false);
+
+  const runUpdateCheckFlow = React.useCallback(async () => {
+    setUpdateModalOpen(true);
+    setUpdateChecking(true);
+    setUpdateResult(null);
+    try {
+      const r = await window.reminder.checkForUpdates();
+      setUpdateResult(r);
+      if (r.status === 'available') setUpdateBadge(true);
+      if (r.status === 'latest') setUpdateBadge(false);
+    } finally {
+      setUpdateChecking(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    window.reminder
+      .getAppVersion()
+      .then((v) => {
+        if (!cancelled) setAppVersion(v);
+      })
+      .catch(() => {
+        if (!cancelled) setAppVersion(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  React.useEffect(() => {
+    if (!booted || !appVersion) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await window.reminder.checkForUpdates();
+        if (cancelled) return;
+        if (r.status === 'available') setUpdateBadge(true);
+      } catch {
+        // ignore
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [booted, appVersion]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -206,11 +259,15 @@ export function App() {
   }, []);
 
   React.useEffect(() => {
-    if (!showCloseDialog) return;
-    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowCloseDialog(false); };
+    if (!showCloseDialog && !updateModalOpen) return;
+    const h = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (updateModalOpen) setUpdateModalOpen(false);
+      else setShowCloseDialog(false);
+    };
     window.addEventListener('keydown', h);
     return () => window.removeEventListener('keydown', h);
-  }, [showCloseDialog]);
+  }, [showCloseDialog, updateModalOpen]);
 
   const toggleMaster = () => {
     if (!booted) return;
@@ -234,6 +291,17 @@ export function App() {
 
   return (
     <div className="window">
+      <UpdateModal
+        open={updateModalOpen}
+        checking={updateChecking}
+        result={updateResult}
+        onClose={() => setUpdateModalOpen(false)}
+        onRecheck={() => void runUpdateCheckFlow()}
+        onOpenDownload={(url) => {
+          void window.reminder.openDownloadUrl(url);
+        }}
+      />
+
       {showCloseDialog && (
         <CloseDialog
           onTray={() => { setShowCloseDialog(false); window.reminder.closeWindow(); }}
@@ -259,6 +327,44 @@ export function App() {
             <div className="appBrand">
               <div className="appName">Reminder</div>
               <div className="appTagline">{"We've got your back"}</div>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditing(null);
+                  setTab('settings');
+                  void runUpdateCheckFlow();
+                }}
+                title="Mở Cài đặt và kiểm tra cập nhật"
+                style={{
+                  marginTop: 8,
+                  padding: 0,
+                  border: 'none',
+                  background: 'none',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  fontSize: 12,
+                  color: 'rgba(126,184,247,.9)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  textAlign: 'left',
+                }}
+              >
+                Phiên bản {appVersion ?? '…'}
+                {updateBadge ? (
+                  <span
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      background: '#6ee7b7',
+                      flexShrink: 0,
+                      boxShadow: '0 0 0 2px rgba(110,231,183,.25)',
+                    }}
+                    aria-hidden
+                  />
+                ) : null}
+              </button>
             </div>
           </div>
 
@@ -368,7 +474,10 @@ export function App() {
               </div>
               <div style={{ flex: 1, overflowY: 'auto' }}>
                 <React.Suspense fallback={<div style={{ padding: 24, opacity: 0.7 }}>Loading...</div>}>
-                  <Settings />
+                  <Settings
+                    appVersion={appVersion}
+                    onCheckForUpdates={() => void runUpdateCheckFlow()}
+                  />
                 </React.Suspense>
               </div>
             </>
