@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const electron_1 = require("electron");
 const node_path_1 = __importDefault(require("node:path"));
 const node_fs_1 = __importDefault(require("node:fs"));
+const node_os_1 = __importDefault(require("node:os"));
 const ipc_1 = require("./ipc");
 const scheduler_1 = require("./scheduler");
 const store_1 = require("./store");
@@ -21,6 +22,20 @@ let tray = null;
 let scheduler = undefined;
 let isQuitting = false;
 console.log("DIR:", __dirname);
+function isLikelyAutoStartLaunch(state) {
+    if ((0, autostart_1.hasArg)('--autostart'))
+        return true;
+    // Windows may occasionally launch packaged apps at login without preserving
+    // custom args. Treat launches early after OS boot as startup launches.
+    if (process.platform === 'win32'
+        && electron_1.app.isPackaged
+        && !!state.settings.runOnStartup
+        && !!state.settings.startMinimized
+        && process.argv.length <= 1) {
+        return node_os_1.default.uptime() <= 180;
+    }
+    return false;
+}
 function getAppRootPortable() {
     return node_path_1.default.dirname(electron_1.app.getPath('exe'));
 }
@@ -183,8 +198,8 @@ electron_1.app.whenReady().then(async () => {
         (0, popup_1.showReminderPopup)(_reminder);
     }, { onStateChanged: ipc_1.broadcastStateChanged });
     const state = (0, store_1.readState)();
-    const launchedByAutostart = (0, autostart_1.hasArg)('--autostart');
     const forceMinimized = (0, autostart_1.hasArg)('--minimized');
+    const launchedByAutostart = isLikelyAutoStartLaunch(state);
     const shouldStartHidden = forceMinimized || (launchedByAutostart && !!state.settings.startMinimized);
     (0, autostart_1.setAutostartEnabled)(!!state.settings.runOnStartup, { startMinimized: !!state.settings.startMinimized }).catch((err) => {
         console.warn('[Reminder] Failed to sync startup setting:', err);

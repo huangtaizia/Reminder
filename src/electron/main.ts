@@ -1,6 +1,7 @@
 import { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain, session } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
+import os from 'node:os';
 import { broadcastStateChanged, registerIpc } from './ipc';
 import { ReminderScheduler } from './scheduler';
 import { readState, setSettings } from './store';
@@ -21,6 +22,24 @@ let scheduler: ReminderScheduler | undefined = undefined;
 let isQuitting = false;
 
 console.log("DIR:", __dirname);
+
+function isLikelyAutoStartLaunch(state: ReturnType<typeof readState>): boolean {
+  if (hasArg('--autostart')) return true;
+
+  // Windows may occasionally launch packaged apps at login without preserving
+  // custom args. Treat launches early after OS boot as startup launches.
+  if (
+    process.platform === 'win32'
+    && app.isPackaged
+    && !!state.settings.runOnStartup
+    && !!state.settings.startMinimized
+    && process.argv.length <= 1
+  ) {
+    return os.uptime() <= 180;
+  }
+
+  return false;
+}
 
 function getAppRootPortable(): string {
   return path.dirname(app.getPath('exe'));
@@ -195,8 +214,8 @@ app.whenReady().then(async () => {
   }, { onStateChanged: broadcastStateChanged });
 
   const state = readState();
-  const launchedByAutostart = hasArg('--autostart');
   const forceMinimized = hasArg('--minimized');
+  const launchedByAutostart = isLikelyAutoStartLaunch(state);
   const shouldStartHidden = forceMinimized || (launchedByAutostart && !!state.settings.startMinimized);
 
   setAutostartEnabled(
