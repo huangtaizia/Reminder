@@ -1,29 +1,45 @@
 import React from 'react';
 import styles from './ReminderEditor.module.css';
 import { CustomDropdown } from './CustomDropdown';
-import { FixedTimePicker } from './FixedTimePicker';
 import { IntervalSection } from './IntervalSection';
 import { DisplayDurationSlider } from './DisplayDurationSlider';
-import type { FixedRepeatMode, ScheduleType } from './reminderEditorTypes';
+import { TimeInput } from './TimeInput';
+import type { RepeatMode } from './reminderEditorTypes';
 import type { ReminderEditorForm } from './useReminderEditorForm';
 
 export function ReminderEditorRightColumn({ form }: { form: ReminderEditorForm }) {
   const {
-    scheduleType,
-    setScheduleType,
     intervalMin,
     setIntervalMin,
     displayMin,
     setDisplayMin,
-    fixedHour,
-    setFixedHour,
-    fixedMinute,
-    setFixedMinute,
-    fixedRepeat,
-    setFixedRepeat,
+    startHour,
+    setStartHour,
+    startMinute,
+    setStartMinute,
+    endHour,
+    setEndHour,
+    endMinute,
+    setEndMinute,
+    weekdays,
+    toggleWeekday,
+    repeatMode,
+    setRepeatMode,
+    timeRangeError,
+    weekdaysError,
+    canSave,
     handleSave,
     handlePreview,
   } = form;
+  const weekOptions = [
+    { value: 1, label: 'T2' },
+    { value: 2, label: 'T3' },
+    { value: 3, label: 'T4' },
+    { value: 4, label: 'T5' },
+    { value: 5, label: 'T6' },
+    { value: 6, label: 'T7' },
+    { value: 0, label: 'CN' },
+  ];
 
   return (
     <div className={styles.rightCol}>
@@ -32,42 +48,65 @@ export function ReminderEditorRightColumn({ form }: { form: ReminderEditorForm }
 
         <div className={styles.scrollArea}>
           <div>
-            <div className={styles.fieldLabel}>Chọn loại nhắc nhở</div>
-            <CustomDropdown<ScheduleType>
-              value={scheduleType}
-              onChange={setScheduleType}
+            <div className={styles.fieldLabel}>Chế độ lặp</div>
+            <CustomDropdown<RepeatMode>
+              value={repeatMode}
+              onChange={setRepeatMode}
               options={[
-                { value: 'interval', label: 'Lặp lại theo chu kỳ' },
-                { value: 'fixed', label: 'Theo giờ cố định' },
+                { value: 'repeat', label: 'Lặp lại theo lịch' },
+                { value: 'once', label: 'Chỉ chạy 1 lần rồi tắt' },
               ]}
             />
           </div>
 
-          {scheduleType === 'fixed' && (
-            <div className={styles.fixedBlock}>
-              <FixedTimePicker
-                hour={fixedHour}
-                minute={fixedMinute}
-                onHourChange={setFixedHour}
-                onMinuteChange={setFixedMinute}
-              />
-              <div>
-                <div className={styles.fieldLabel}>Tần suất lặp lại</div>
-                <CustomDropdown<FixedRepeatMode>
-                  value={fixedRepeat}
-                  onChange={setFixedRepeat}
-                  options={[
-                    { value: 'once', label: 'Một lần duy nhất' },
-                    { value: 'daily', label: 'Hằng ngày' },
-                  ]}
-                />
-              </div>
-            </div>
-          )}
-
-          {scheduleType === 'interval' && (
+          <div>
             <IntervalSection intervalMin={intervalMin} setIntervalMin={setIntervalMin} />
-          )}
+          </div>
+
+          <div className={styles.fixedBlock}>
+            <div>
+              <div className={styles.fieldLabel}>Khung giờ hoạt động</div>
+              <div className={styles.timeRangeRow}>
+                <div className={styles.timeInline}>
+                  <span className={styles.timeInlineLabel}>Bắt đầu</span>
+                  <div className={styles.timeMiniBox}>
+                    <TimeInput value={startHour} max={23} onChange={setStartHour} />
+                    <span className={styles.timeColonSmall}>:</span>
+                    <TimeInput value={startMinute} max={59} onChange={setStartMinute} />
+                  </div>
+                </div>
+                <div className={styles.timeInline}>
+                  <span className={styles.timeInlineLabel}>Kết thúc</span>
+                  <div className={styles.timeMiniBox}>
+                    <TimeInput value={endHour} max={23} onChange={setEndHour} />
+                    <span className={styles.timeColonSmall}>:</span>
+                    <TimeInput value={endMinute} max={59} onChange={setEndMinute} />
+                  </div>
+                </div>
+              </div>
+              {timeRangeError ? <div className={styles.inlineError}>{timeRangeError}</div> : null}
+            </div>
+
+            <div>
+              <div className={styles.fieldLabel}>Thứ trong tuần</div>
+              <div className={styles.weekdayGrid}>
+                {weekOptions.map((w) => {
+                  const active = weekdays.includes(w.value);
+                  return (
+                    <button
+                      key={w.value}
+                      type="button"
+                      className={`${styles.weekdayChip} ${active ? styles.weekdayChipActive : ''}`}
+                      onClick={() => toggleWeekday(w.value)}
+                    >
+                      {w.label}
+                    </button>
+                  );
+                })}
+              </div>
+              {weekdaysError ? <div className={styles.inlineError}>{weekdaysError}</div> : null}
+            </div>
+          </div>
 
           <DisplayDurationSlider displayMin={displayMin} setDisplayMin={setDisplayMin} />
         </div>
@@ -79,7 +118,7 @@ export function ReminderEditorRightColumn({ form }: { form: ReminderEditorForm }
             </svg>
             Xem trước
           </button>
-          <button type="button" className={`btn primary ${styles.footerBtn} ${styles.footerBtnSave}`} onClick={handleSave}>
+          <button type="button" className={`btn primary ${styles.footerBtn} ${styles.footerBtnSave}`} onClick={handleSave} disabled={!canSave}>
             <svg width="13" height="13" viewBox="0 0 11 11" fill="currentColor" className={styles.btnIcon}>
               <path d="M9 0H2C0.9 0 0 0.9 0 2V9C0 10.1 0.9 11 2 11H9C10.1 11 11 10.1 11 9V2L9 0ZM5.5 9.5C4.12 9.5 3 8.38 3 7C3 5.62 4.12 4.5 5.5 4.5C6.88 4.5 8 5.62 8 7C8 8.38 6.88 9.5 5.5 9.5ZM7 3H2V1H7V3Z" />
             </svg>

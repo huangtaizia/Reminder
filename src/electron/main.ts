@@ -64,9 +64,9 @@ function createMainWindow(showOnReady: boolean) {
   const windowIconPath = app.isPackaged ? packagedIconPath : devIconPath;
 
   mainWindow = new BrowserWindow({
-    width: 1240,
+    width: 1420,
     height: 840,
-    minWidth: 1240,
+    minWidth: 1360,
     minHeight: 840,
     resizable: true,
     icon: fs.existsSync(windowIconPath) ? windowIconPath : undefined,

@@ -98,3 +98,113 @@ export function renderIconById(id: string, color = '#C2C6D6', size = 20): React.
   );
 }
 
+/** ReminderList — biểu tượng theo config reminder (emoji / id) */
+export function renderIcon(iconValue: string, active: boolean): React.ReactNode {
+  const resolvedId = resolveIconId(iconValue);
+  const found = resolvedId ? ICON_BY_ID.get(resolvedId) : null;
+
+  if (!found) {
+    return (
+      <span style={{ fontSize: 20, lineHeight: 1 }}>
+        {iconValue && iconValue.length <= 2 ? iconValue : '🔔'}
+      </span>
+    );
+  }
+
+  return (
+    <div
+      style={{
+        color: active ? '#ADC6FF' : '#C2C6D6',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        transform: 'scale(0.75)',
+        transformOrigin: 'center',
+      }}
+    >
+      {found.svg}
+    </div>
+  );
+}
+
+/** ReminderList — lịch / lặp / hành động */
+export function IconClock() {
+  return (
+    <svg width="11" height="12" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm.5 5v5.25l4.5 2.67-.75 1.23L11 13V7h1.5z" />
+    </svg>
+  );
+}
+
+export function IconRepeat() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="16"
+      height="16"
+      shapeRendering="geometricPrecision"
+      textRendering="geometricPrecision"
+      imageRendering="optimizeQuality"
+      fillRule="evenodd"
+      clipRule="evenodd"
+      viewBox="0 0 426 512.288"
+      fill="currentColor"
+      aria-hidden
+    >
+      <path
+        fillRule="nonzero"
+        fill="currentColor"
+        d="M52.707 232.055c0 14.554-11.799 26.353-26.354 26.353C11.799 258.408 0 246.609 0 232.055v-37.736c0-35.539 14.521-67.83 37.915-91.222 23.393-23.394 55.684-37.915 91.222-37.915h206.748L314.6 45.652c-10.688-9.834-11.379-26.473-1.545-37.161 9.834-10.688 26.473-11.378 37.161-1.545l67.239 61.692c10.687 9.834 11.378 26.473 1.544 37.161a26.017 26.017 0 01-1.558 1.558l-66.734 66.622c-10.29 10.232-26.929 10.187-37.161-.102-10.232-10.289-10.187-26.929.102-37.16l18.859-18.829h-203.37c-20.993 0-40.097 8.607-53.959 22.471-13.864 13.862-22.471 32.967-22.471 53.96v37.736zM111.4 466.636c10.688 9.834 11.379 26.473 1.545 37.161-9.834 10.688-26.473 11.378-37.161 1.545L8.545 443.649c-10.687-9.833-11.378-26.472-1.544-37.161a26.622 26.622 0 011.558-1.558l66.734-66.621c10.29-10.232 26.929-10.187 37.161.102 10.232 10.289 10.187 26.929-.102 37.16L93.493 394.4h203.37c20.993 0 40.097-8.607 53.959-22.471 13.864-13.862 22.471-32.967 22.471-53.96v-37.736c0-14.554 11.799-26.353 26.354-26.353 14.554 0 26.353 11.799 26.353 26.353v37.736c0 35.539-14.521 67.83-37.915 91.222-23.393 23.394-55.684 37.915-91.222 37.915H90.115l21.285 19.53z"
+      />
+    </svg>
+  );
+}
+
+export function IconRepeatOne() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="16"
+      height="16"
+      shapeRendering="geometricPrecision"
+      textRendering="geometricPrecision"
+      imageRendering="optimizeQuality"
+      fillRule="evenodd"
+      clipRule="evenodd"
+      viewBox="0 0 426 512.289"
+      fill="currentColor"
+      aria-hidden
+    >
+      <path
+        fillRule="nonzero"
+        fill="currentColor"
+        d="M52.706 232.055c0 14.555-11.798 26.354-26.353 26.354C11.799 258.409 0 246.61 0 232.055v-37.736c0-35.538 14.523-67.83 37.915-91.222 23.392-23.392 55.684-37.915 91.222-37.915h206.748L314.6 45.652c-10.688-9.834-11.379-26.473-1.545-37.161 9.834-10.688 26.473-11.378 37.161-1.545l67.239 61.693c10.688 9.833 11.378 26.472 1.545 37.161a26.95 26.95 0 01-1.559 1.558l-66.734 66.621c-10.289 10.232-26.929 10.188-37.16-.102-10.233-10.289-10.188-26.929.101-37.16l18.859-18.829h-203.37c-20.99 0-40.095 8.608-53.959 22.472-13.864 13.864-22.472 32.968-22.472 53.959v37.736zM206.559 333.5V223.359c-8.53 7.463-18.686 13.674-32.71 15.334v-38.232c12.802-1.24 34.335-10.272 41.298-21.672h37.005V333.5h-45.593zM111.4 466.637c10.688 9.834 11.379 26.473 1.545 37.161-9.834 10.688-26.473 11.378-37.161 1.545L8.545 443.65C-2.143 433.817-2.833 417.177 7 406.489a26.95 26.95 0 011.559-1.558l66.734-66.621c10.289-10.232 26.929-10.188 37.16.101 10.233 10.29 10.188 26.929-.101 37.161l-18.859 18.829h203.37c20.993 0 40.097-8.608 53.959-22.472 13.864-13.862 22.472-32.966 22.472-53.959v-37.736c0-14.555 11.798-26.354 26.353-26.354 14.554 0 26.353 11.799 26.353 26.354v37.736c0 35.538-14.521 67.83-37.915 91.222-23.392 23.394-55.684 37.915-91.222 37.915H90.115l21.285 19.53z"
+      />
+    </svg>
+  );
+}
+
+export function IconPaused() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M18 11h-5.18C12.4 9.84 11.3 9 10 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c1.3 0 2.4-.84 2.82-2H18v2l3-3-3-3v2zM10 13c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1z" />
+    </svg>
+  );
+}
+
+export function IconEdit() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />
+    </svg>
+  );
+}
+
+export function IconDelete() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
+    </svg>
+  );
+}
+

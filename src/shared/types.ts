@@ -9,6 +9,19 @@ export type ReminderSchedule =
       repeat?: 'daily' | 'once';
       // Used when repeat = "once" to persist one-shot behavior across restarts.
       onceAt?: number;
+    }
+  | {
+      type: 'windowedInterval';
+      intervalMs: number;
+      startHour: number;
+      startMinute: number;
+      endHour: number;
+      endMinute: number;
+      // 0 = Sunday ... 6 = Saturday
+      weekdays: number[];
+      repeat: boolean;
+      // Used when repeat = false to persist one-shot behavior across restarts.
+      onceAt?: number;
     };
 
 export type ReminderConfig = {

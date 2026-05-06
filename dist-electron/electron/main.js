@@ -57,9 +57,9 @@ function createMainWindow(showOnReady) {
     const packagedIconPath = node_path_1.default.join(process.resourcesPath, 'icon.ico');
     const windowIconPath = electron_1.app.isPackaged ? packagedIconPath : devIconPath;
     mainWindow = new electron_1.BrowserWindow({
-        width: 1240,
+        width: 1420,
         height: 840,
-        minWidth: 1240,
+        minWidth: 1360,
         minHeight: 840,
         resizable: true,
         icon: node_fs_1.default.existsSync(windowIconPath) ? windowIconPath : undefined,

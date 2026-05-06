@@ -1,82 +1,122 @@
 import React from 'react';
 import type { Reminder } from '../../shared/types';
-import { ICON_BY_ID, resolveIconId } from './reminderIcons';
+import {
+  IconClock,
+  IconDelete,
+  IconEdit,
+  IconPaused,
+  IconRepeat,
+  IconRepeatOne,
+  renderIcon,
+} from './reminderIcons';
 
-function renderIcon(iconValue: string, active: boolean): React.ReactNode {
-  const resolvedId = resolveIconId(iconValue);
-  const found = resolvedId ? ICON_BY_ID.get(resolvedId) : null;
+/** Thứ trong tuần ISO kiểu UI: T2 = đầu tuần (JS: 1=Mon … 6=Sat, 0=Sun) */
+const WEEK_ORDER_MON_FIRST = [1, 2, 3, 4, 5, 6, 0] as const;
 
-  if (!found) {
-    // Emoji gốc hoặc fallback chuông
-    return (
-      <span style={{ fontSize: 20, lineHeight: 1 }}>
-        {iconValue && iconValue.length <= 2 ? iconValue : '🔔'}
-      </span>
-    );
+function jsDayToMonFirstIndex(d: number): number {
+  return WEEK_ORDER_MON_FIRST.indexOf(d as (typeof WEEK_ORDER_MON_FIRST)[number]);
+}
+
+function formatWeekdayRanges(weekdays: number[]): string {
+  const dayLabels: Record<number, string> = {
+    0: 'CN',
+    1: 'T2',
+    2: 'T3',
+    3: 'T4',
+    4: 'T5',
+    5: 'T6',
+    6: 'T7',
+  };
+  const normalized = [...new Set(weekdays)]
+    .filter((d) => Number.isInteger(d) && d >= 0 && d <= 6);
+  if (normalized.length === 0) return '-';
+  if (normalized.length === 7) return 'Hằng ngày';
+
+  const sorted = [...normalized].sort((a, b) => jsDayToMonFirstIndex(a) - jsDayToMonFirstIndex(b));
+
+  const ranges: Array<[number, number]> = [];
+  let start = sorted[0];
+  let end = sorted[0];
+  let endIdx = jsDayToMonFirstIndex(end);
+  for (let i = 1; i < sorted.length; i += 1) {
+    const current = sorted[i];
+    const curIdx = jsDayToMonFirstIndex(current);
+    if (curIdx === endIdx + 1) {
+      end = current;
+      endIdx = curIdx;
+      continue;
+    }
+    ranges.push([start, end]);
+    start = current;
+    end = current;
+    endIdx = curIdx;
   }
+  ranges.push([start, end]);
 
-  return (
-    <div style={{
-      color: active ? '#ADC6FF' : '#C2C6D6',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      transform: 'scale(0.75)', transformOrigin: 'center',
-    }}>
-      {found.svg}
-    </div>
-  );
+  return ranges
+    .map(([s, e]) => (s === e ? dayLabels[s] : `${dayLabels[s]} - ${dayLabels[e]}`))
+    .join(', ');
+}
+
+function formatTimeRange(startHour: number, startMinute: number, endHour: number, endMinute: number): string {
+  const start = `${String(startHour).padStart(2, '0')}:${String(startMinute).padStart(2, '0')}`;
+  const end = `${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}`;
+  return `${start} - ${end}`;
+}
+
+function isRepeatOnce(r: Reminder): boolean {
+  if (r.schedule.type === 'windowedInterval') return !r.schedule.repeat;
+  if (r.schedule.type === 'fixedDaily') return r.schedule.repeat === 'once';
+  return false;
 }
 
 function scheduleLabel(r: Reminder): string {
   if (r.schedule.type === 'interval') {
     const min = Math.round(r.schedule.intervalMs / 60_000);
-    if (min < 60) return `Every ${min} min`;
-    const hours = Math.floor(min / 60);
-    const minutes = min % 60;
-    return minutes === 0 ? `Every ${hours}h` : `Every ${hours}h ${minutes}m`;
+    return `Mỗi ${min} phút`;
+  }
+  if (r.schedule.type === 'windowedInterval') {
+    const min = Math.round(r.schedule.intervalMs / 60_000);
+    const timeRange = formatTimeRange(
+      r.schedule.startHour,
+      r.schedule.startMinute,
+      r.schedule.endHour,
+      r.schedule.endMinute,
+    );
+    const days = formatWeekdayRanges(r.schedule.weekdays);
+    return `${days} • ${timeRange} • ${min}p`;
   }
   const hh = String(r.schedule.hour).padStart(2, '0');
   const mm = String(r.schedule.minute).padStart(2, '0');
-  if (r.schedule.repeat === 'once') return `ONCE: ${hh}:${mm}`;
-  return `NEXT: ${hh}:${mm}`;
+  if (r.schedule.repeat === 'once') return `1 lần • ${hh}:${mm}`;
+  return `Hằng ngày • ${hh}:${mm}`;
 }
 
 function descriptionLabel(r: Reminder): string {
   const dispMin = Math.round(r.config.displayMs / 60_000);
   if (r.schedule.type === 'interval') {
     const min = Math.round(r.schedule.intervalMs / 60_000);
-    return `Repeats every ${min} minutes. Notification shows for ${dispMin} minute(s).`;
+    return `Lặp mỗi ${min} phút. Thông báo hiển thị ${dispMin} phút.`;
+  }
+  if (r.schedule.type === 'windowedInterval') {
+    const min = Math.round(r.schedule.intervalMs / 60_000);
+    const timeRange = formatTimeRange(
+      r.schedule.startHour,
+      r.schedule.startMinute,
+      r.schedule.endHour,
+      r.schedule.endMinute,
+    );
+    const days = formatWeekdayRanges(r.schedule.weekdays);
+    const mode = r.schedule.repeat ? 'Lặp lại' : 'Chỉ chạy 1 lần';
+    return `${days} | ${timeRange} | Mỗi ${min}p (Hiển thị trong ${dispMin}p)`;
   }
   const hh = String(r.schedule.hour).padStart(2, '0');
   const mm = String(r.schedule.minute).padStart(2, '0');
   if (r.schedule.repeat === 'once') {
-    return `One-time at ${hh}:${mm}. Notification shows for ${dispMin} minute(s).`;
+    return `Một lần lúc ${hh}:${mm}. Hiển thị ${dispMin} phút.`;
   }
-  return `Daily at ${hh}:${mm}. Notification shows for ${dispMin} minute(s).`;
+  return `Hằng ngày lúc ${hh}:${mm}. Hiển thị ${dispMin} phút.`;
 }
-
-const IconClock = () => (
-  <svg width="11" height="12" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm.5 5v5.25l4.5 2.67-.75 1.23L11 13V7h1.5z" />
-  </svg>
-);
-
-const IconPaused = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M18 11h-5.18C12.4 9.84 11.3 9 10 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c1.3 0 2.4-.84 2.82-2H18v2l3-3-3-3v2zM10 13c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1z" />
-  </svg>
-);
-
-const IconEdit = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />
-  </svg>
-);
-
-const IconDelete = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
-  </svg>
-);
 
 export function ReminderList({
   initialReminders,
@@ -236,11 +276,19 @@ export function ReminderList({
             <div style={{ flex: 1, minWidth: 0 }}>
               <div className="remRowTitle">
                 <span>{r.config.message}</span>
+                <span
+                  className="remRowNextIconSlot"
+                  title={isRepeatOnce(r) ? 'Chỉ chạy 1 lần' : 'Lặp lại'}
+                >
+                  {isRepeatOnce(r) ? <IconRepeatOne /> : <IconRepeat />}
+                </span>
               </div>
               <div className="remRowDesc">{descriptionLabel(r)}</div>
               <div className={'remRowNext' + (isDisabled ? ' paused' : '')}>
-                {isDisabled ? <IconPaused /> : <IconClock />}
-                <span>{isDisabled ? 'PAUSED' : scheduleLabel(r)}</span>
+                <span className="remRowNextIconSlot">
+                  {isDisabled ? <IconPaused /> : <IconClock />}
+                </span>
+                <span className="remRowNextLabel">{isDisabled ? 'PAUSED' : scheduleLabel(r)}</span>
               </div>
             </div>
           </div>
@@ -282,7 +330,19 @@ export function ReminderList({
         ar.schedule.type === br.schedule.type &&
         (ar.schedule.type === 'interval'
           ? (br.schedule.type === 'interval' && ar.schedule.intervalMs === br.schedule.intervalMs)
-          : (
+          : ar.schedule.type === 'windowedInterval'
+            ? (
+              br.schedule.type === 'windowedInterval' &&
+              ar.schedule.intervalMs === br.schedule.intervalMs &&
+              ar.schedule.startHour === br.schedule.startHour &&
+              ar.schedule.startMinute === br.schedule.startMinute &&
+              ar.schedule.endHour === br.schedule.endHour &&
+              ar.schedule.endMinute === br.schedule.endMinute &&
+              ar.schedule.repeat === br.schedule.repeat &&
+              ar.schedule.onceAt === br.schedule.onceAt &&
+              ar.schedule.weekdays.join(',') === br.schedule.weekdays.join(',')
+            )
+            : (
               br.schedule.type === 'fixedDaily' &&
               ar.schedule.hour === br.schedule.hour &&
               ar.schedule.minute === br.schedule.minute &&

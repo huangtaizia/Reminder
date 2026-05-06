@@ -61,7 +61,7 @@ body {
 .window {
   width: 100vw;
   height: 100vh;
-  min-width: 1240px;
+  min-width: 1360px;
   min-height: 840px;
   display: flex;
   flex-direction: column;
@@ -403,8 +403,28 @@ body {
   letter-spacing: 0.4px;
   text-transform: uppercase;
   color: #85ADFF;
+  line-height: 1;
 }
 .remRowNext.paused { color: #A3AAC4; }
+
+/* Căn giữa icon với dòng chữ (SVG viewBox lớn dễ lệch quang học) */
+.remRowNextIconSlot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+}
+.remRowNextIconSlot svg {
+  display: block;
+  margin: 0;
+}
+.remRowNextLabel {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
 
 /* ═══════════════════════════════════════════════════════════════════
    REMINDER LIST — row actions (toggle, icon buttons, divider)

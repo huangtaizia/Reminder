@@ -11,12 +11,15 @@ type ScheduleEntry = {
   timeout: NodeJS.Timeout;
   key: string;
 };
+type WindowedSchedule = Extract<Reminder['schedule'], { type: 'windowedInterval' }>;
 
 function clampMs(ms: number): number {
   const min = 60_000;
   const max = 24 * 60 * 60_000;
   return Math.max(min, Math.min(max, ms));
 }
+
+const ONE_SHOT_GRACE_MS = 30_000;
 
 function msUntilNextFixedDaily(hour: number, minute: number, now = new Date()): number {
   const target = new Date(now);
@@ -26,6 +29,63 @@ function msUntilNextFixedDaily(hour: number, minute: number, now = new Date()): 
     target.setDate(target.getDate() + 1);
   }
   return target.getTime() - now.getTime();
+}
+
+function dayStartMs(ts: number): number {
+  const d = new Date(ts);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+}
+
+function parseTimeToMinute(hour: number, minute: number): number {
+  const h = Math.max(0, Math.min(23, hour));
+  const m = Math.max(0, Math.min(59, minute));
+  return h * 60 + m;
+}
+
+function normalizeWeekdays(days: number[] | undefined): number[] {
+  if (!Array.isArray(days)) return [];
+  const uniq = new Set<number>();
+  for (const d of days) {
+    if (Number.isInteger(d) && d >= 0 && d <= 6) uniq.add(d);
+  }
+  return [...uniq].sort((a, b) => a - b);
+}
+
+function nextWindowedCandidateAt(schedule: WindowedSchedule, nowMs = Date.now()): number | null {
+  const weekdays = normalizeWeekdays(schedule.weekdays);
+  if (weekdays.length === 0) return null;
+
+  const startMinute = parseTimeToMinute(schedule.startHour, schedule.startMinute);
+  const endMinute = parseTimeToMinute(schedule.endHour, schedule.endMinute);
+  if (startMinute >= endMinute) return null;
+
+  const intervalMs = clampMs(schedule.intervalMs);
+  const now = new Date(nowMs);
+  const today = now.getDay();
+  for (let offset = 0; offset < 14; offset += 1) {
+    const day = (today + offset) % 7;
+    if (!weekdays.includes(day)) continue;
+
+    const base = dayStartMs(nowMs + offset * 24 * 60 * 60_000);
+    const startAt = base + startMinute * 60_000;
+    const endAt = base + endMinute * 60_000;
+
+    if (offset === 0) {
+      if (nowMs < startAt) return startAt;
+      if (nowMs >= endAt) continue;
+
+      const elapsed = nowMs - startAt;
+      const step = Math.ceil(elapsed / intervalMs);
+      const candidate = startAt + Math.max(0, step) * intervalMs;
+      if (candidate < endAt) return candidate;
+      continue;
+    }
+
+    return startAt;
+  }
+
+  return null;
 }
 
 function isFixedOnceReminder(reminder: Reminder): reminder is Reminder & {
@@ -41,6 +101,12 @@ function isFixedOnceReminder(reminder: Reminder): reminder is Reminder & {
     reminder.schedule.type === 'fixedDaily' &&
     reminder.schedule.repeat === 'once'
   );
+}
+
+function isWindowedNonRepeatReminder(reminder: Reminder): reminder is Reminder & {
+  schedule: WindowedSchedule & { repeat: false };
+} {
+  return reminder.schedule.type === 'windowedInterval' && reminder.schedule.repeat === false;
 }
 
 function msUntilNextFixedDailyAt(hour: number, minute: number, nowMs = Date.now()): number {
@@ -81,20 +147,28 @@ export class ReminderScheduler {
     const key = crypto.randomUUID();
     let effectiveReminder = reminder;
 
-    // For "once" mode, re-calc onceAt every time we schedule
+    // For one-shot modes, re-calc onceAt every time we schedule
     // (covers "enable lại" rule).
-    if (isFixedOnceReminder(reminder)) {
-      const nextAt = msUntilNextFixedDailyAt(
-        Math.max(0, Math.min(23, reminder.schedule.hour)),
-        Math.max(0, Math.min(59, reminder.schedule.minute)),
-      );
+    if (isFixedOnceReminder(reminder) || isWindowedNonRepeatReminder(reminder)) {
+      let nextAt: number | null = null;
+      if (isFixedOnceReminder(reminder)) {
+        nextAt = msUntilNextFixedDailyAt(
+          Math.max(0, Math.min(23, reminder.schedule.hour)),
+          Math.max(0, Math.min(59, reminder.schedule.minute)),
+        );
+      } else {
+        // Within this branch we're guaranteed to be a windowedInterval one-shot reminder.
+        nextAt = nextWindowedCandidateAt(reminder.schedule);
+      }
+
+      if (nextAt == null) return;
 
       const prevAt = reminder.schedule.onceAt;
       const prevAtValid = typeof prevAt === 'number' && Number.isFinite(prevAt);
       if (!prevAtValid || prevAt !== nextAt) {
         const next: Reminder = {
           ...reminder,
-          schedule: { ...reminder.schedule, onceAt: nextAt },
+          schedule: { ...reminder.schedule, onceAt: nextAt } as Reminder['schedule'],
         };
         upsertReminder(next);
         try { this.onStateChanged?.(); } catch { /* ignore */ }
@@ -115,7 +189,7 @@ export class ReminderScheduler {
         if (!current || current.key !== key) return;
 
         this.onTrigger(effectiveReminder);
-        if (isFixedOnceReminder(effectiveReminder)) {
+        if (isFixedOnceReminder(effectiveReminder) || isWindowedNonRepeatReminder(effectiveReminder)) {
           // After firing once, automatically disable the reminder.
           if (effectiveReminder.enabled !== false) {
             // Defer write to avoid blocking the event loop
@@ -160,7 +234,7 @@ export class ReminderScheduler {
           return clampMs(fallback);
         }
         const ms = at - Date.now();
-        if (ms <= 0) return null;
+        if (ms <= 0) return ms >= -ONE_SHOT_GRACE_MS ? 1 : null;
         return ms;
       }
       const ms = msUntilNextFixedDaily(
@@ -168,6 +242,24 @@ export class ReminderScheduler {
         Math.max(0, Math.min(59, reminder.schedule.minute))
       );
       return clampMs(ms);
+    }
+    if (reminder.schedule.type === 'windowedInterval') {
+      if (reminder.schedule.repeat === false) {
+        const at = reminder.schedule.onceAt;
+        if (typeof at !== 'number' || !Number.isFinite(at)) {
+          const fallback = nextWindowedCandidateAt(reminder.schedule);
+          if (fallback == null) return null;
+          return Math.max(1, fallback - Date.now());
+        }
+        const ms = at - Date.now();
+        if (ms <= 0) return ms >= -ONE_SHOT_GRACE_MS ? 1 : null;
+        return ms;
+      }
+
+      const next = nextWindowedCandidateAt(reminder.schedule);
+      if (next == null) return null;
+      const ms = next - Date.now();
+      return Math.max(1, ms);
     }
     return 60_000;
   }
