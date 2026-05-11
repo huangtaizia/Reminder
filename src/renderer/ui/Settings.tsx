@@ -24,6 +24,8 @@ export function Settings({
 }) {
   const [autostart, setAutostart] = React.useState(false);
   const [startMinimized, setStartMinimized] = React.useState(false);
+  const [clearingCache, setClearingCache] = React.useState(false);
+  const [cacheMessage, setCacheMessage] = React.useState<string>('');
 
   React.useEffect(() => {
     window.reminder.getState().then(s => {
@@ -81,6 +83,39 @@ export function Settings({
 
       <div className="settingsSectionLabel">Dữ liệu</div>
       <div className="settingsList">
+        <div className="settingRow" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 10 }}>
+          <div className="settingInfo">
+            <div className="settingTitle">Xóa cache ứng dụng</div>
+            <div className="settingDesc">Dọn bộ nhớ đệm thủ công khi cần xử lý lỗi hiển thị hoặc dữ liệu cache cũ.</div>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 10 }}>
+            <button
+              type="button"
+              className="btn"
+              disabled={clearingCache}
+              onClick={async () => {
+                setClearingCache(true);
+                setCacheMessage('');
+                try {
+                  await window.reminder.clearCache();
+                  setCacheMessage('Đã xóa cache. Vui lòng mở lại ứng dụng nếu bạn muốn tối ưu hiệu quả.');
+                } catch {
+                  setCacheMessage('Không thể xóa cache. Vui lòng thử lại.');
+                } finally {
+                  setClearingCache(false);
+                }
+              }}
+            >
+              {clearingCache ? 'Đang xóa cache...' : 'Xóa cache'}
+            </button>
+          </div>
+          {cacheMessage ? (
+            <div className="settingDesc" style={{ textAlign: 'center' }}>
+              {cacheMessage}
+            </div>
+          ) : null}
+        </div>
+
         <div className="settingRow" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 10 }}>
           <div className="settingInfo">
             <div className="settingTitle">Đặt lại tất cả</div>

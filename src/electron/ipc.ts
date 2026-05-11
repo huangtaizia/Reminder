@@ -1,5 +1,7 @@
-import { app, BrowserWindow, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, shell, session } from 'electron';
 import crypto from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
 import { readState, writeState, upsertReminder, deleteReminder, setSettings } from './store';
 import type { PersistedState, Reminder } from '../shared/types';
 import type { ReminderScheduler } from './scheduler';
@@ -42,6 +44,11 @@ export function registerIpc(opts?: { scheduler?: SchedulerApi; onSettingsChanged
   });
 
   ipcMain.handle('app:getVersion', async () => app.getVersion());
+  ipcMain.handle('startup:mark', async (_e, label: string) => {
+    if (typeof label !== 'string' || !label.trim()) return false;
+    console.log(`[Startup] renderer ${Date.now()} ${label.trim()}`);
+    return true;
+  });
 
   ipcMain.handle('update:check', async () => checkForUpdates());
 
@@ -71,6 +78,38 @@ export function registerIpc(opts?: { scheduler?: SchedulerApi; onSettingsChanged
     scheduler?.rescheduleAll(next.reminders, next.settings.masterEnabled);
     broadcastStateChanged();
     return next;
+  });
+
+  ipcMain.handle('cache:clear', async () => {
+    try {
+      await session.defaultSession.clearCache();
+      await session.defaultSession.clearStorageData({
+        storages: ['cachestorage', 'shadercache'],
+      });
+    } catch {
+      // ignore runtime cache clear failures
+    }
+
+    const userDataDir = app.getPath('userData');
+    const cacheRoots = [
+      path.join(userDataDir, 'cache'),
+      path.join(userDataDir, 'Cache'),
+      path.join(userDataDir, 'Code Cache'),
+      path.join(userDataDir, 'GPUCache'),
+      path.join(userDataDir, 'DawnCache'),
+      path.join(userDataDir, 'GrShaderCache'),
+      path.join(userDataDir, 'ShaderCache'),
+      path.join(userDataDir, 'Service Worker', 'CacheStorage'),
+    ];
+    for (const p of cacheRoots) {
+      try {
+        fs.rmSync(p, { recursive: true, force: true });
+      } catch {
+        // ignore
+      }
+    }
+
+    return true;
   });
 
   ipcMain.handle('settings:set', async (_e, partial: Partial<PersistedState['settings']>) => {

@@ -198,6 +198,15 @@ export function App() {
   const [updateChecking, setUpdateChecking] = React.useState(false);
   const [updateResult, setUpdateResult] = React.useState<UpdateCheckResult | null>(null);
   const [updateBadge, setUpdateBadge] = React.useState(false);
+  const startupMarkedRef = React.useRef(false);
+
+  React.useEffect(() => {
+    void window.reminder.startupMark('app-mounted');
+    const raf = window.requestAnimationFrame(() => {
+      void window.reminder.startupMark('first-frame');
+    });
+    return () => window.cancelAnimationFrame(raf);
+  }, []);
 
   const runUpdateCheckFlow = React.useCallback(async () => {
     setUpdateModalOpen(true);
@@ -231,17 +240,21 @@ export function App() {
   React.useEffect(() => {
     if (!booted || !appVersion) return;
     let cancelled = false;
-    (async () => {
-      try {
-        const r = await window.reminder.checkForUpdates();
-        if (cancelled) return;
-        if (r.status === 'available') setUpdateBadge(true);
-      } catch {
-        // ignore
-      }
-    })();
+    const timer = window.setTimeout(() => {
+      if (cancelled) return;
+      (async () => {
+        try {
+          const r = await window.reminder.checkForUpdates();
+          if (cancelled) return;
+          if (r.status === 'available') setUpdateBadge(true);
+        } catch {
+          // ignore
+        }
+      })();
+    }, 2500);
     return () => {
       cancelled = true;
+      window.clearTimeout(timer);
     };
   }, [booted, appVersion]);
 
@@ -254,6 +267,10 @@ export function App() {
       setReminderCount(reminders.length);
       setInitialReminders(reminders);
       setBooted(true);
+      if (!startupMarkedRef.current) {
+        startupMarkedRef.current = true;
+        void window.reminder.startupMark('state-loaded');
+      }
     }).catch(() => setBooted(true));
     return () => { cancelled = true; };
   }, []);

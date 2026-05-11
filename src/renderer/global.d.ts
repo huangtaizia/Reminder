@@ -12,6 +12,7 @@ declare global {
       ping: () => Promise<string>;
       getState: () => Promise<any>;
       getAppVersion: () => Promise<string>;
+      startupMark: (label: string) => Promise<boolean>;
       checkForUpdates: () => Promise<UpdateCheckResult>;
       openDownloadUrl: (url: string) => Promise<boolean>;
       getAutostartStatus: () => Promise<{
@@ -20,6 +21,7 @@ declare global {
         launchItemEnabled: boolean;
       }>;
       resetAll: () => Promise<any>;
+      clearCache: () => Promise<boolean>;
       setSettings: (partial: any) => Promise<any>;
       upsertReminder: (reminder: any) => Promise<any>;
       deleteReminder: (id: string) => Promise<any>;

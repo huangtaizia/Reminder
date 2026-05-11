@@ -59,9 +59,11 @@ export function ReminderEditorRightColumn({ form }: { form: ReminderEditorForm }
             />
           </div>
 
-          <div>
-            <IntervalSection intervalMin={intervalMin} setIntervalMin={setIntervalMin} />
-          </div>
+          {repeatMode === 'repeat' ? (
+            <div>
+              <IntervalSection intervalMin={intervalMin} setIntervalMin={setIntervalMin} />
+            </div>
+          ) : null}
 
           <div className={styles.fixedBlock}>
             <div>

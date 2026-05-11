@@ -7,6 +7,8 @@ exports.broadcastStateChanged = broadcastStateChanged;
 exports.registerIpc = registerIpc;
 const electron_1 = require("electron");
 const node_crypto_1 = __importDefault(require("node:crypto"));
+const node_fs_1 = __importDefault(require("node:fs"));
+const node_path_1 = __importDefault(require("node:path"));
 const store_1 = require("./store");
 const popup_1 = require("./popup");
 const autostart_1 = require("./autostart");
@@ -40,6 +42,12 @@ function registerIpc(opts) {
         return (0, store_1.readState)();
     });
     electron_1.ipcMain.handle('app:getVersion', async () => electron_1.app.getVersion());
+    electron_1.ipcMain.handle('startup:mark', async (_e, label) => {
+        if (typeof label !== 'string' || !label.trim())
+            return false;
+        console.log(`[Startup] renderer ${Date.now()} ${label.trim()}`);
+        return true;
+    });
     electron_1.ipcMain.handle('update:check', async () => (0, updateCheck_1.checkForUpdates)());
     electron_1.ipcMain.handle('update:openDownload', async (_e, url) => {
         try {
@@ -67,6 +75,37 @@ function registerIpc(opts) {
         scheduler?.rescheduleAll(next.reminders, next.settings.masterEnabled);
         broadcastStateChanged();
         return next;
+    });
+    electron_1.ipcMain.handle('cache:clear', async () => {
+        try {
+            await electron_1.session.defaultSession.clearCache();
+            await electron_1.session.defaultSession.clearStorageData({
+                storages: ['cachestorage', 'shadercache'],
+            });
+        }
+        catch {
+            // ignore runtime cache clear failures
+        }
+        const userDataDir = electron_1.app.getPath('userData');
+        const cacheRoots = [
+            node_path_1.default.join(userDataDir, 'cache'),
+            node_path_1.default.join(userDataDir, 'Cache'),
+            node_path_1.default.join(userDataDir, 'Code Cache'),
+            node_path_1.default.join(userDataDir, 'GPUCache'),
+            node_path_1.default.join(userDataDir, 'DawnCache'),
+            node_path_1.default.join(userDataDir, 'GrShaderCache'),
+            node_path_1.default.join(userDataDir, 'ShaderCache'),
+            node_path_1.default.join(userDataDir, 'Service Worker', 'CacheStorage'),
+        ];
+        for (const p of cacheRoots) {
+            try {
+                node_fs_1.default.rmSync(p, { recursive: true, force: true });
+            }
+            catch {
+                // ignore
+            }
+        }
+        return true;
     });
     electron_1.ipcMain.handle('settings:set', async (_e, partial) => {
         const next = (0, store_1.setSettings)(partial);

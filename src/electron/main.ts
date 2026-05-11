@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain, session } from 'electron';
+import { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -9,8 +9,8 @@ import { isReminderPopupActive, showReminderPopup } from './popup';
 import { hasArg, setAutostartEnabled } from './autostart';
 
 const dataDir = path.join(app.getPath('appData'), 'Reminder')
+const startupT0 = Date.now();
 
-app.disableHardwareAcceleration()
 app.setPath('userData', dataDir)
 app.setPath('cache', path.join(dataDir, 'cache'))
 
@@ -19,9 +19,11 @@ const isDev = !app.isPackaged;
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let scheduler: ReminderScheduler | undefined = undefined;
-let isQuitting = false;
 
-console.log("DIR:", __dirname);
+function logStartup(step: string) {
+  if (!isDev && !hasArg('--startup-prof')) return;
+  console.log(`[Startup] ${Date.now() - startupT0}ms ${step}`);
+}
 
 function isLikelyAutoStartLaunch(state: ReturnType<typeof readState>): boolean {
   if (hasArg('--autostart')) return true;
@@ -80,11 +82,22 @@ function createMainWindow(showOnReady: boolean) {
     titleBarStyle: 'hidden',
     titleBarOverlay: false,
   });
+  logStartup('main-window-created');
 
-  mainWindow.once('ready-to-show', () => {
-    if (!showOnReady) return;
-    mainWindow?.show();
-  });
+  let revealed = false;
+  const revealWindow = () => {
+    if (revealed || !showOnReady) return;
+    revealed = true;
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    mainWindow.show();
+    logStartup('main-window-shown');
+  };
+  mainWindow.once('ready-to-show', revealWindow);
+  mainWindow.webContents.once('did-finish-load', revealWindow);
+  mainWindow.webContents.once('did-finish-load', () => logStartup('renderer-did-finish-load'));
+  mainWindow.once('ready-to-show', () => logStartup('main-window-ready-to-show'));
+  // Fallback to avoid waiting too long on ready-to-show in heavy environments.
+  setTimeout(revealWindow, 1200);
 
   if (isDev) {
     mainWindow.loadURL('http://127.0.0.1:5173/');
@@ -92,44 +105,6 @@ function createMainWindow(showOnReady: boolean) {
   } else {
     mainWindow.loadFile(path.join(__dirname, '../../dist/index.html'));
   }
-
-  app.on("before-quit", () => {});
-}
-
-function clearAppCacheFiles() {
-  const userDataDir = app.getPath('userData');
-  const cacheRoots = [
-    path.join(userDataDir, 'cache'),
-    path.join(userDataDir, 'Cache'),
-    path.join(userDataDir, 'Code Cache'),
-    path.join(userDataDir, 'GPUCache'),
-    path.join(userDataDir, 'DawnCache'),
-    path.join(userDataDir, 'GrShaderCache'),
-    path.join(userDataDir, 'ShaderCache'),
-    path.join(userDataDir, 'Service Worker', 'CacheStorage'),
-  ];
-  for (const p of cacheRoots) {
-    try {
-      fs.rmSync(p, { recursive: true, force: true });
-    } catch {
-      // ignore
-    }
-  }
-}
-
-async function quitAppAndClearCache() {
-  if (isQuitting) return;
-  isQuitting = true;
-  try {
-    await session.defaultSession.clearCache();
-    await session.defaultSession.clearStorageData({
-      storages: ['cachestorage', 'shadercache'],
-    });
-  } catch {
-    // ignore
-  }
-  clearAppCacheFiles();
-  app.quit();
 }
 
 function createTray() {
@@ -164,7 +139,7 @@ function createTray() {
     { type: "separator" },
     {
       label: "Thoát",
-      click: () => { void quitAppAndClearCache(); },
+      click: () => { app.quit(); },
     },
   ]);
 
@@ -183,28 +158,16 @@ function createTray() {
 }
 
 function logPaths() {
-  const dataDir = ensureDataDir();
-  if (isDev) {
-    console.log('[Reminder] dataDir:', dataDir);
-  }
+  if (!isDev) return;
+  const portableDataDir = ensureDataDir();
+  console.log('[Reminder] dataDir:', portableDataDir);
 }
 
 app.whenReady().then(async () => {
   // Keep this aligned with electron-builder build.appId for correct
   // taskbar pin/group identity and icon resolution on Windows.
   app.setAppUserModelId("com.hhv.reminder");
-
-  // ── Clear cache khi phát hiện version mới ──
-  const currentVersion = app.getVersion();
-  const savedVersion = readState().settings?.lastVersion as string | undefined;
-  if (savedVersion !== currentVersion) {
-    await session.defaultSession.clearCache();
-    await session.defaultSession.clearStorageData({
-      storages: ['cachestorage', 'shadercache']
-    });
-    setSettings({ lastVersion: currentVersion } as any);
-    if (isDev) console.log('[Reminder] cache cleared for version', currentVersion);
-  }
+  logStartup('app-when-ready');
 
   logPaths();
 
@@ -217,13 +180,6 @@ app.whenReady().then(async () => {
   const forceMinimized = hasArg('--minimized');
   const launchedByAutostart = isLikelyAutoStartLaunch(state);
   const shouldStartHidden = forceMinimized || (launchedByAutostart && !!state.settings.startMinimized);
-
-  setAutostartEnabled(
-    !!state.settings.runOnStartup,
-    { startMinimized: !!state.settings.startMinimized }
-  ).catch((err) => {
-    console.warn('[Reminder] Failed to sync startup setting:', err);
-  });
 
   registerIpc({
     scheduler,
@@ -238,14 +194,37 @@ app.whenReady().then(async () => {
   });
 
   createMainWindow(!shouldStartHidden);
-  createTray();
+  scheduler.rescheduleAll(state.reminders, state.settings.masterEnabled);
+  logStartup('scheduler-reschedule-done');
+
+  // Defer non-critical boot tasks until first window pipeline has started.
+  setTimeout(() => {
+    const currentVersion = app.getVersion();
+    const savedVersion = state.settings?.lastVersion as string | undefined;
+    if (savedVersion !== currentVersion) {
+      setSettings({ lastVersion: currentVersion } as any);
+      if (isDev) console.log('[Reminder] version updated', currentVersion);
+    }
+  }, 500);
+
+  setTimeout(() => {
+    setAutostartEnabled(
+      !!state.settings.runOnStartup,
+      { startMinimized: !!state.settings.startMinimized }
+    ).catch((err) => {
+      console.warn('[Reminder] Failed to sync startup setting:', err);
+    });
+  }, 900);
+
+  setTimeout(() => {
+    createTray();
+    logStartup('tray-created');
+  }, 1200);
 
   ipcMain.handle('quit-app', async () => {
-    await quitAppAndClearCache();
+    app.quit();
     return true;
   });
-
-  scheduler.rescheduleAll(state.reminders, state.settings.masterEnabled);
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createMainWindow(true);
@@ -257,5 +236,3 @@ app.on('window-all-closed', () => {
 });
 
 app.commandLine.appendSwitch("disable-backgrounding-occluded-windows");
-console.log("PRELOAD PATH:", path.join(__dirname, 'preload.js'));
-console.log("EXISTS:", fs.existsSync(path.join(__dirname, 'preload.js')));

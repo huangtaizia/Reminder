@@ -13,15 +13,18 @@ const store_1 = require("./store");
 const popup_1 = require("./popup");
 const autostart_1 = require("./autostart");
 const dataDir = node_path_1.default.join(electron_1.app.getPath('appData'), 'Reminder');
-electron_1.app.disableHardwareAcceleration();
+const startupT0 = Date.now();
 electron_1.app.setPath('userData', dataDir);
 electron_1.app.setPath('cache', node_path_1.default.join(dataDir, 'cache'));
 const isDev = !electron_1.app.isPackaged;
 let mainWindow = null;
 let tray = null;
 let scheduler = undefined;
-let isQuitting = false;
-console.log("DIR:", __dirname);
+function logStartup(step) {
+    if (!isDev && !(0, autostart_1.hasArg)('--startup-prof'))
+        return;
+    console.log(`[Startup] ${Date.now() - startupT0}ms ${step}`);
+}
 function isLikelyAutoStartLaunch(state) {
     if ((0, autostart_1.hasArg)('--autostart'))
         return true;
@@ -73,11 +76,23 @@ function createMainWindow(showOnReady) {
         titleBarStyle: 'hidden',
         titleBarOverlay: false,
     });
-    mainWindow.once('ready-to-show', () => {
-        if (!showOnReady)
+    logStartup('main-window-created');
+    let revealed = false;
+    const revealWindow = () => {
+        if (revealed || !showOnReady)
             return;
-        mainWindow?.show();
-    });
+        revealed = true;
+        if (!mainWindow || mainWindow.isDestroyed())
+            return;
+        mainWindow.show();
+        logStartup('main-window-shown');
+    };
+    mainWindow.once('ready-to-show', revealWindow);
+    mainWindow.webContents.once('did-finish-load', revealWindow);
+    mainWindow.webContents.once('did-finish-load', () => logStartup('renderer-did-finish-load'));
+    mainWindow.once('ready-to-show', () => logStartup('main-window-ready-to-show'));
+    // Fallback to avoid waiting too long on ready-to-show in heavy environments.
+    setTimeout(revealWindow, 1200);
     if (isDev) {
         mainWindow.loadURL('http://127.0.0.1:5173/');
         mainWindow.webContents.openDevTools({ mode: 'detach' });
@@ -85,44 +100,6 @@ function createMainWindow(showOnReady) {
     else {
         mainWindow.loadFile(node_path_1.default.join(__dirname, '../../dist/index.html'));
     }
-    electron_1.app.on("before-quit", () => { });
-}
-function clearAppCacheFiles() {
-    const userDataDir = electron_1.app.getPath('userData');
-    const cacheRoots = [
-        node_path_1.default.join(userDataDir, 'cache'),
-        node_path_1.default.join(userDataDir, 'Cache'),
-        node_path_1.default.join(userDataDir, 'Code Cache'),
-        node_path_1.default.join(userDataDir, 'GPUCache'),
-        node_path_1.default.join(userDataDir, 'DawnCache'),
-        node_path_1.default.join(userDataDir, 'GrShaderCache'),
-        node_path_1.default.join(userDataDir, 'ShaderCache'),
-        node_path_1.default.join(userDataDir, 'Service Worker', 'CacheStorage'),
-    ];
-    for (const p of cacheRoots) {
-        try {
-            node_fs_1.default.rmSync(p, { recursive: true, force: true });
-        }
-        catch {
-            // ignore
-        }
-    }
-}
-async function quitAppAndClearCache() {
-    if (isQuitting)
-        return;
-    isQuitting = true;
-    try {
-        await electron_1.session.defaultSession.clearCache();
-        await electron_1.session.defaultSession.clearStorageData({
-            storages: ['cachestorage', 'shadercache'],
-        });
-    }
-    catch {
-        // ignore
-    }
-    clearAppCacheFiles();
-    electron_1.app.quit();
 }
 function createTray() {
     const trayIconPath = electron_1.app.isPackaged
@@ -153,7 +130,7 @@ function createTray() {
         { type: "separator" },
         {
             label: "Thoát",
-            click: () => { void quitAppAndClearCache(); },
+            click: () => { electron_1.app.quit(); },
         },
     ]);
     tray.setToolTip("Reminder");
@@ -170,27 +147,16 @@ function createTray() {
     });
 }
 function logPaths() {
-    const dataDir = ensureDataDir();
-    if (isDev) {
-        console.log('[Reminder] dataDir:', dataDir);
-    }
+    if (!isDev)
+        return;
+    const portableDataDir = ensureDataDir();
+    console.log('[Reminder] dataDir:', portableDataDir);
 }
 electron_1.app.whenReady().then(async () => {
     // Keep this aligned with electron-builder build.appId for correct
     // taskbar pin/group identity and icon resolution on Windows.
     electron_1.app.setAppUserModelId("com.hhv.reminder");
-    // ── Clear cache khi phát hiện version mới ──
-    const currentVersion = electron_1.app.getVersion();
-    const savedVersion = (0, store_1.readState)().settings?.lastVersion;
-    if (savedVersion !== currentVersion) {
-        await electron_1.session.defaultSession.clearCache();
-        await electron_1.session.defaultSession.clearStorageData({
-            storages: ['cachestorage', 'shadercache']
-        });
-        (0, store_1.setSettings)({ lastVersion: currentVersion });
-        if (isDev)
-            console.log('[Reminder] cache cleared for version', currentVersion);
-    }
+    logStartup('app-when-ready');
     logPaths();
     scheduler = new scheduler_1.ReminderScheduler((_reminder) => {
         if (isDev)
@@ -201,9 +167,6 @@ electron_1.app.whenReady().then(async () => {
     const forceMinimized = (0, autostart_1.hasArg)('--minimized');
     const launchedByAutostart = isLikelyAutoStartLaunch(state);
     const shouldStartHidden = forceMinimized || (launchedByAutostart && !!state.settings.startMinimized);
-    (0, autostart_1.setAutostartEnabled)(!!state.settings.runOnStartup, { startMinimized: !!state.settings.startMinimized }).catch((err) => {
-        console.warn('[Reminder] Failed to sync startup setting:', err);
-    });
     (0, ipc_1.registerIpc)({
         scheduler,
         onSettingsChanged: (s) => {
@@ -213,12 +176,31 @@ electron_1.app.whenReady().then(async () => {
         },
     });
     createMainWindow(!shouldStartHidden);
-    createTray();
+    scheduler.rescheduleAll(state.reminders, state.settings.masterEnabled);
+    logStartup('scheduler-reschedule-done');
+    // Defer non-critical boot tasks until first window pipeline has started.
+    setTimeout(() => {
+        const currentVersion = electron_1.app.getVersion();
+        const savedVersion = state.settings?.lastVersion;
+        if (savedVersion !== currentVersion) {
+            (0, store_1.setSettings)({ lastVersion: currentVersion });
+            if (isDev)
+                console.log('[Reminder] version updated', currentVersion);
+        }
+    }, 500);
+    setTimeout(() => {
+        (0, autostart_1.setAutostartEnabled)(!!state.settings.runOnStartup, { startMinimized: !!state.settings.startMinimized }).catch((err) => {
+            console.warn('[Reminder] Failed to sync startup setting:', err);
+        });
+    }, 900);
+    setTimeout(() => {
+        createTray();
+        logStartup('tray-created');
+    }, 1200);
     electron_1.ipcMain.handle('quit-app', async () => {
-        await quitAppAndClearCache();
+        electron_1.app.quit();
         return true;
     });
-    scheduler.rescheduleAll(state.reminders, state.settings.masterEnabled);
     electron_1.app.on('activate', () => {
         if (electron_1.BrowserWindow.getAllWindows().length === 0)
             createMainWindow(true);
@@ -228,5 +210,3 @@ electron_1.app.on('window-all-closed', () => {
     // keep running in tray
 });
 electron_1.app.commandLine.appendSwitch("disable-backgrounding-occluded-windows");
-console.log("PRELOAD PATH:", node_path_1.default.join(__dirname, 'preload.js'));
-console.log("EXISTS:", node_fs_1.default.existsSync(node_path_1.default.join(__dirname, 'preload.js')));
