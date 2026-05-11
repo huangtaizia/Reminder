@@ -18,6 +18,8 @@ let blockerWins = [];
 let focusGuardsEnabled = false;
 let previewQueue = Promise.resolve();
 let focusReclaimSeq = 0;
+let escShortcutRegistered = false;
+const ENABLE_POPUP_GLOBAL_ESC = (process.env.REMINDER_POPUP_GLOBAL_ESC ?? "1") !== "0";
 // Store window ids we forced ignore mouse while popup stack active.
 const ignoredMouseWinIds = new Set();
 function clamp(n, min, max) {
@@ -72,8 +74,7 @@ function ensureDimWins() {
         webPreferences: { contextIsolation: false },
     });
     dimWin.setIgnoreMouseEvents(false);
-    dimWin.setAlwaysOnTop(true, "screen-saver");
-    dimWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    dimWin.setAlwaysOnTop(true, "floating");
     const dimPath = electron_1.app.isPackaged
         ? node_path_1.default.join(process.resourcesPath, "popup-dim.html")
         : node_path_1.default.join(process.cwd(), "public", "popup-dim.html");
@@ -117,8 +118,7 @@ function ensureBlockerWins() {
             webPreferences: { contextIsolation: false },
         });
         win.setIgnoreMouseEvents(false);
-        win.setAlwaysOnTop(true, "screen-saver");
-        win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+        win.setAlwaysOnTop(true, "floating");
         win.setFocusable(false);
         win.loadFile(blockerPath);
         win.once("ready-to-show", () => {
@@ -135,12 +135,40 @@ function destroyBlockerWins() {
     }
     blockerWins = [];
 }
+function registerPopupEscShortcut() {
+    if (!ENABLE_POPUP_GLOBAL_ESC || escShortcutRegistered)
+        return;
+    try {
+        escShortcutRegistered = electron_1.globalShortcut.register("Esc", () => {
+            const win = activePopupWin;
+            if (!win || win.isDestroyed())
+                return;
+            win.close();
+        });
+    }
+    catch {
+        escShortcutRegistered = false;
+    }
+}
+function unregisterPopupEscShortcut() {
+    if (!escShortcutRegistered)
+        return;
+    try {
+        electron_1.globalShortcut.unregister("Esc");
+    }
+    catch {
+        // ignore
+    }
+    finally {
+        escShortcutRegistered = false;
+    }
+}
 function reclaimTopNow() {
     const win = activePopupWin;
     if (!win || win.isDestroyed())
         return;
     // AV-safe mode: avoid foreground-steal APIs and just maintain z-order inside app.
-    win.setAlwaysOnTop(true, "screen-saver");
+    win.setAlwaysOnTop(true, "pop-up-menu");
     win.moveTop();
     if (!win.isVisible())
         win.show();
@@ -231,8 +259,7 @@ function createPopupForReminder(reminder) {
             contextIsolation: true,
         }
     });
-    mainWin.setAlwaysOnTop(true, "screen-saver");
-    mainWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    mainWin.setAlwaysOnTop(true, "pop-up-menu");
     activePopupWin = mainWin;
     activeReminderId = reminder.id;
     const closeThis = () => {
@@ -263,6 +290,7 @@ function createPopupForReminder(reminder) {
             destroyDimWins();
             destroyBlockerWins();
             stopFocusGuards();
+            unregisterPopupEscShortcut();
             return;
         }
         const next = popupQueue.shift();
@@ -311,6 +339,7 @@ function createPopupForReminder(reminder) {
         ensureDimWins();
         ensureBlockerWins();
         startFocusGuards();
+        registerPopupEscShortcut();
     }
     syncMouseIgnore();
     return mainWin;
@@ -341,6 +370,7 @@ async function previewReminderInternal(reminder) {
     destroyDimWins();
     destroyBlockerWins();
     stopFocusGuards();
+    unregisterPopupEscShortcut();
     showReminderPopup(reminder);
 }
 function previewReminder(reminder) {

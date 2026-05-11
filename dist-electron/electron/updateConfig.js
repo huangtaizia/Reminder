@@ -1,10 +1,13 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.BUILTIN_UPDATE_MANIFEST_URL = void 0;
+exports.BUILTIN_GITHUB_REPO = exports.BUILTIN_UPDATE_MANIFEST_URL = void 0;
 /**
- * URL HTTPS tới file `latest.json`.
- * Mặc định: raw trên GitLab (nhánh main, path docs/update/latest.json).
- *
- * Khi để rỗng: có thể gán `REMINDER_UPDATE_MANIFEST_URL` trên máy dev/CI.
+ * Optional HTTPS URL to legacy manifest (`latest.json`).
+ * Keep for backward compatibility. Leave empty to prefer GitHub Releases.
  */
-exports.BUILTIN_UPDATE_MANIFEST_URL = 'https://gitlab.fci.vn/hoanghv13/reminder/-/raw/main/docs/update/latest.json';
+exports.BUILTIN_UPDATE_MANIFEST_URL = '';
+/**
+ * GitHub repository in `owner/repo` format used for release updates.
+ * Override on CI/build via `REMINDER_GITHUB_REPO` when needed.
+ */
+exports.BUILTIN_GITHUB_REPO = 'hoanghv13/reminder';

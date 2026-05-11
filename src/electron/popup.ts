@@ -1,4 +1,4 @@
-import { BrowserWindow, screen, app } from "electron"
+import { BrowserWindow, screen, app, globalShortcut } from "electron"
 import path from "node:path"
 import type { Reminder } from "../shared/types"
 
@@ -16,6 +16,9 @@ let blockerWins: BrowserWindow[] = []
 let focusGuardsEnabled = false
 let previewQueue: Promise<void> = Promise.resolve()
 let focusReclaimSeq = 0
+let escShortcutRegistered = false
+
+const ENABLE_POPUP_GLOBAL_ESC = (process.env.REMINDER_POPUP_GLOBAL_ESC ?? "1") !== "0"
 
 // Store window ids we forced ignore mouse while popup stack active.
 const ignoredMouseWinIds = new Set<number>()
@@ -75,8 +78,7 @@ function ensureDimWins() {
   })
 
   dimWin.setIgnoreMouseEvents(false)
-  dimWin.setAlwaysOnTop(true, "screen-saver")
-  dimWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
+  dimWin.setAlwaysOnTop(true, "floating")
 
   const dimPath = app.isPackaged
     ? path.join(process.resourcesPath, "popup-dim.html")
@@ -120,8 +122,7 @@ function ensureBlockerWins() {
       webPreferences: { contextIsolation: false },
     })
     win.setIgnoreMouseEvents(false)
-    win.setAlwaysOnTop(true, "screen-saver")
-    win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
+    win.setAlwaysOnTop(true, "floating")
     win.setFocusable(false)
     win.loadFile(blockerPath)
     win.once("ready-to-show", () => {
@@ -138,11 +139,35 @@ function destroyBlockerWins() {
   blockerWins = []
 }
 
+function registerPopupEscShortcut() {
+  if (!ENABLE_POPUP_GLOBAL_ESC || escShortcutRegistered) return
+  try {
+    escShortcutRegistered = globalShortcut.register("Esc", () => {
+      const win = activePopupWin
+      if (!win || win.isDestroyed()) return
+      win.close()
+    })
+  } catch {
+    escShortcutRegistered = false
+  }
+}
+
+function unregisterPopupEscShortcut() {
+  if (!escShortcutRegistered) return
+  try {
+    globalShortcut.unregister("Esc")
+  } catch {
+    // ignore
+  } finally {
+    escShortcutRegistered = false
+  }
+}
+
 function reclaimTopNow() {
   const win = activePopupWin
   if (!win || win.isDestroyed()) return
   // AV-safe mode: avoid foreground-steal APIs and just maintain z-order inside app.
-  win.setAlwaysOnTop(true, "screen-saver")
+  win.setAlwaysOnTop(true, "pop-up-menu")
   win.moveTop()
   if (!win.isVisible()) win.show()
   win.focus()
@@ -238,8 +263,7 @@ function createPopupForReminder(reminder: Reminder) {
     }
   })
 
-  mainWin.setAlwaysOnTop(true, "screen-saver")
-  mainWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
+  mainWin.setAlwaysOnTop(true, "pop-up-menu")
   activePopupWin = mainWin
   activeReminderId = reminder.id
 
@@ -273,6 +297,7 @@ function createPopupForReminder(reminder: Reminder) {
       destroyDimWins()
       destroyBlockerWins()
       stopFocusGuards()
+      unregisterPopupEscShortcut()
       return
     }
     const next = popupQueue.shift()
@@ -324,6 +349,7 @@ function createPopupForReminder(reminder: Reminder) {
     ensureDimWins()
     ensureBlockerWins()
     startFocusGuards()
+    registerPopupEscShortcut()
   }
 
   syncMouseIgnore()
@@ -357,6 +383,7 @@ async function previewReminderInternal(reminder: Reminder) {
   destroyDimWins()
   destroyBlockerWins()
   stopFocusGuards()
+  unregisterPopupEscShortcut()
 
   showReminderPopup(reminder)
 }
