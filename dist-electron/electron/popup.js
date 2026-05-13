@@ -20,6 +20,7 @@ let previewQueue = Promise.resolve();
 let focusReclaimSeq = 0;
 let escShortcutRegistered = false;
 const ENABLE_POPUP_GLOBAL_ESC = (process.env.REMINDER_POPUP_GLOBAL_ESC ?? "1") !== "0";
+const ENABLE_POPUP_MOUSE_LOCK = (process.env.REMINDER_POPUP_MOUSE_LOCK ?? "0") === "1";
 // Store window ids we forced ignore mouse while popup stack active.
 const ignoredMouseWinIds = new Set();
 function clamp(n, min, max) {
@@ -32,11 +33,32 @@ function isReminderPopupActive() {
     return !!activePopupWin && !activePopupWin.isDestroyed();
 }
 function syncMouseIgnore() {
-    if (!isReminderPopupActive()) {
-        for (const id of ignoredMouseWinIds) {
-            const w = electron_1.BrowserWindow.fromId(id);
-            if (w && !w.isDestroyed())
+    if (!ENABLE_POPUP_MOUSE_LOCK) {
+        // Fail-safe: ensure no app window is left unclickable.
+        for (const w of electron_1.BrowserWindow.getAllWindows()) {
+            if (w.isDestroyed() || isAnyPopupWindow(w))
+                continue;
+            try {
                 w.setIgnoreMouseEvents(false);
+            }
+            catch {
+                // ignore
+            }
+        }
+        ignoredMouseWinIds.clear();
+        return;
+    }
+    if (!isReminderPopupActive()) {
+        // Strong recovery path: reset all non-popup windows, not only tracked ids.
+        for (const w of electron_1.BrowserWindow.getAllWindows()) {
+            if (w.isDestroyed() || isAnyPopupWindow(w))
+                continue;
+            try {
+                w.setIgnoreMouseEvents(false);
+            }
+            catch {
+                // ignore
+            }
         }
         ignoredMouseWinIds.clear();
         return;
