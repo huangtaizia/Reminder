@@ -25,8 +25,12 @@ export function ReminderEditorRightColumn({ form }: { form: ReminderEditorForm }
     toggleWeekday,
     repeatMode,
     setRepeatMode,
+    onceDate,
+    setOnceDate,
+    setOnceDateToday,
     timeRangeError,
     weekdaysError,
+    onceDateError,
     canSave,
     handleSave,
     handlePreview,
@@ -60,55 +64,88 @@ export function ReminderEditorRightColumn({ form }: { form: ReminderEditorForm }
           </div>
 
           {repeatMode === 'repeat' ? (
-            <div>
-              <IntervalSection intervalMin={intervalMin} setIntervalMin={setIntervalMin} />
-            </div>
-          ) : null}
+            <>
+              <div>
+                <IntervalSection intervalMin={intervalMin} setIntervalMin={setIntervalMin} />
+              </div>
+              <div className={styles.fixedBlock}>
+                <div>
+                  <div className={styles.fieldLabel}>Khung giờ hoạt động</div>
+                  <div className={styles.timeRangeRow}>
+                    <div className={styles.timeInline}>
+                      <span className={styles.timeInlineLabel}>Bắt đầu</span>
+                      <div className={styles.timeMiniBox}>
+                        <TimeInput value={startHour} max={23} onChange={setStartHour} />
+                        <span className={styles.timeColonSmall}>:</span>
+                        <TimeInput value={startMinute} max={59} onChange={setStartMinute} />
+                      </div>
+                    </div>
+                    <div className={styles.timeInline}>
+                      <span className={styles.timeInlineLabel}>Kết thúc</span>
+                      <div className={styles.timeMiniBox}>
+                        <TimeInput value={endHour} max={23} onChange={setEndHour} />
+                        <span className={styles.timeColonSmall}>:</span>
+                        <TimeInput value={endMinute} max={59} onChange={setEndMinute} />
+                      </div>
+                    </div>
+                  </div>
+                  {timeRangeError ? <div className={styles.inlineError}>{timeRangeError}</div> : null}
+                </div>
 
-          <div className={styles.fixedBlock}>
-            <div>
-              <div className={styles.fieldLabel}>Khung giờ hoạt động</div>
-              <div className={styles.timeRangeRow}>
+                <div>
+                  <div className={styles.fieldLabel}>Thứ trong tuần</div>
+                  <div className={styles.weekdayGrid}>
+                    {weekOptions.map((w) => {
+                      const active = weekdays.includes(w.value);
+                      return (
+                        <button
+                          key={w.value}
+                          type="button"
+                          className={`${styles.weekdayChip} ${active ? styles.weekdayChipActive : ''}`}
+                          onClick={() => toggleWeekday(w.value)}
+                        >
+                          {w.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {weekdaysError ? <div className={styles.inlineError}>{weekdaysError}</div> : null}
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className={styles.fixedBlock}>
+              <div>
+                <div className={styles.fieldLabel}>Ngày chạy</div>
+                <div className={styles.onceDateRow}>
+                  <input
+                    type="date"
+                    value={onceDate}
+                    onChange={(e) => setOnceDate(e.target.value)}
+                    className={styles.dateInput}
+                  />
+                  <button
+                    type="button"
+                    className={styles.todayBtn}
+                    onClick={setOnceDateToday}
+                  >
+                    Hôm nay
+                  </button>
+                </div>
+              </div>
+              <div>
+                <div className={styles.fieldLabel}>Thời gian nhắc nhở</div>
                 <div className={styles.timeInline}>
-                  <span className={styles.timeInlineLabel}>Bắt đầu</span>
-                  <div className={styles.timeMiniBox}>
+                  <div className={`${styles.timeMiniBox} ${styles.onceTimeBox}`}>
                     <TimeInput value={startHour} max={23} onChange={setStartHour} />
                     <span className={styles.timeColonSmall}>:</span>
                     <TimeInput value={startMinute} max={59} onChange={setStartMinute} />
                   </div>
                 </div>
-                <div className={styles.timeInline}>
-                  <span className={styles.timeInlineLabel}>Kết thúc</span>
-                  <div className={styles.timeMiniBox}>
-                    <TimeInput value={endHour} max={23} onChange={setEndHour} />
-                    <span className={styles.timeColonSmall}>:</span>
-                    <TimeInput value={endMinute} max={59} onChange={setEndMinute} />
-                  </div>
-                </div>
+                {onceDateError ? <div className={styles.inlineError}>{onceDateError}</div> : null}
               </div>
-              {timeRangeError ? <div className={styles.inlineError}>{timeRangeError}</div> : null}
             </div>
-
-            <div>
-              <div className={styles.fieldLabel}>Thứ trong tuần</div>
-              <div className={styles.weekdayGrid}>
-                {weekOptions.map((w) => {
-                  const active = weekdays.includes(w.value);
-                  return (
-                    <button
-                      key={w.value}
-                      type="button"
-                      className={`${styles.weekdayChip} ${active ? styles.weekdayChipActive : ''}`}
-                      onClick={() => toggleWeekday(w.value)}
-                    >
-                      {w.label}
-                    </button>
-                  );
-                })}
-              </div>
-              {weekdaysError ? <div className={styles.inlineError}>{weekdaysError}</div> : null}
-            </div>
-          </div>
+          )}
 
           <DisplayDurationSlider displayMin={displayMin} setDisplayMin={setDisplayMin} />
         </div>

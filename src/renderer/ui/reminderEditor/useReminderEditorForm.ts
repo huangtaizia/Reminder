@@ -1,7 +1,7 @@
 import React from 'react';
 import type { Reminder, ReminderSchedule } from '../../../shared/types';
 import { ICONS, EMOJI_TO_ID } from '../reminderIcons';
-import { DEFAULT_MESSAGE, nextOccurrenceAt } from './reminderEditorUtils';
+import { DEFAULT_MESSAGE, atDateAndTime, nextOccurrenceAt, toDateInputValue } from './reminderEditorUtils';
 import type { RepeatMode } from './reminderEditorTypes';
 
 const COLOR = '#3b9eff';
@@ -17,6 +17,7 @@ export function useReminderEditorForm(initial?: Reminder | null, onSaved?: () =>
   const [endMinute, setEndMinute] = React.useState(0);
   const [weekdays, setWeekdays] = React.useState<number[]>([1, 2, 3, 4, 5]);
   const [repeatMode, setRepeatMode] = React.useState<RepeatMode>('repeat');
+  const [onceDate, setOnceDate] = React.useState<string>(toDateInputValue());
 
   React.useEffect(() => {
     if (!initial) return;
@@ -43,6 +44,12 @@ export function useReminderEditorForm(initial?: Reminder | null, onSaved?: () =>
       setEndHour(Math.min(23, initial.schedule.hour + 1));
       setEndMinute(initial.schedule.minute);
       setRepeatMode(initial.schedule.repeat === 'once' ? 'once' : 'repeat');
+      const at = initial.schedule.onceAt;
+      if (initial.schedule.repeat === 'once' && typeof at === 'number' && Number.isFinite(at)) {
+        setOnceDate(toDateInputValue(new Date(at)));
+      } else {
+        setOnceDate(toDateInputValue());
+      }
     }
   }, [initial]);
 
@@ -54,7 +61,16 @@ export function useReminderEditorForm(initial?: Reminder | null, onSaved?: () =>
   const weekdaysError = weekdays.length === 0
     ? 'Vui lòng chọn ít nhất một thứ trong tuần.'
     : '';
-  const canSave = !timeRangeError && !weekdaysError;
+  const onceAt = React.useMemo(
+    () => atDateAndTime(onceDate, startHour, startMinute),
+    [onceDate, startHour, startMinute],
+  );
+  const onceDateError = repeatMode === 'once' && (!onceAt || onceAt <= Date.now())
+    ? 'Thời điểm chạy 1 lần phải ở tương lai.'
+    : '';
+  const canSave = repeatMode === 'once'
+    ? !onceDateError
+    : !timeRangeError && !weekdaysError;
 
   const toggleWeekday = React.useCallback((day: number) => {
     setWeekdays((prev) => {
@@ -63,10 +79,23 @@ export function useReminderEditorForm(initial?: Reminder | null, onSaved?: () =>
     });
   }, []);
 
+  const setOnceDateToday = React.useCallback(() => {
+    setOnceDate(toDateInputValue());
+  }, []);
+
   const handleSave = React.useCallback(async () => {
     if (!canSave) return;
-    const schedule: ReminderSchedule =
-      {
+    const schedule: ReminderSchedule = repeatMode === 'once'
+      ? {
+        type: 'fixedDaily',
+        hour: Math.max(0, Math.min(23, startHour)),
+        minute: Math.max(0, Math.min(59, startMinute)),
+        repeat: 'once',
+        onceAt:
+            onceAt
+            ?? nextOccurrenceAt(Math.max(0, Math.min(23, startHour)), Math.max(0, Math.min(59, startMinute))),
+      }
+      : {
         type: 'windowedInterval',
         intervalMs: Math.max(1, intervalMin) * 60_000,
         startHour: Math.max(0, Math.min(23, startHour)),
@@ -74,10 +103,7 @@ export function useReminderEditorForm(initial?: Reminder | null, onSaved?: () =>
         endHour: Math.max(0, Math.min(23, endHour)),
         endMinute: Math.max(0, Math.min(59, endMinute)),
         weekdays,
-        repeat: repeatMode === 'repeat',
-        onceAt: repeatMode === 'once'
-          ? nextOccurrenceAt(Math.max(0, Math.min(23, startHour)), Math.max(0, Math.min(59, startMinute)))
-          : undefined,
+        repeat: true,
       };
     await window.reminder.upsertReminder({
       id: initial?.id,
@@ -103,6 +129,7 @@ export function useReminderEditorForm(initial?: Reminder | null, onSaved?: () =>
     message,
     onSaved,
     repeatMode,
+    onceAt,
     startHour,
     startMinute,
     weekdays,
@@ -140,8 +167,12 @@ export function useReminderEditorForm(initial?: Reminder | null, onSaved?: () =>
     toggleWeekday,
     repeatMode,
     setRepeatMode,
+    onceDate,
+    setOnceDate,
+    setOnceDateToday,
     timeRangeError,
     weekdaysError,
+    onceDateError,
     canSave,
     handleSave,
     handlePreview,

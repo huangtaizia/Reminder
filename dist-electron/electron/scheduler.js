@@ -126,7 +126,13 @@ class ReminderScheduler {
         if (isFixedOnceReminder(reminder) || isWindowedNonRepeatReminder(reminder)) {
             let nextAt = null;
             if (isFixedOnceReminder(reminder)) {
-                nextAt = msUntilNextFixedDailyAt(Math.max(0, Math.min(23, reminder.schedule.hour)), Math.max(0, Math.min(59, reminder.schedule.minute)));
+                const persistedAt = reminder.schedule.onceAt;
+                if (typeof persistedAt === 'number' && Number.isFinite(persistedAt) && persistedAt > Date.now()) {
+                    nextAt = persistedAt;
+                }
+                else {
+                    nextAt = msUntilNextFixedDailyAt(Math.max(0, Math.min(23, reminder.schedule.hour)), Math.max(0, Math.min(59, reminder.schedule.minute)));
+                }
             }
             else {
                 // Within this branch we're guaranteed to be a windowedInterval one-shot reminder.
