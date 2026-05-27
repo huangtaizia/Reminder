@@ -12,7 +12,7 @@
   },
   "keywords": [],
   "author": "Hồ Việt Hoàng",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "type": "commonjs",
   "dependencies": {
     "react": "^19.2.4",
