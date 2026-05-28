@@ -38,6 +38,7 @@ type GitHubReleaseAsset = {
 type GitHubLatestReleaseResponse = {
   tag_name?: string;
   body?: string;
+  html_url?: string;
   assets?: GitHubReleaseAsset[];
 };
 
@@ -70,11 +71,14 @@ async function fetchManifestFromGitHub(repo: string): Promise<UpdateManifest> {
   const exeAsset =
     assets.find((a) => (a.name ?? '').match(/^Reminder-.*\.exe$/i))
     ?? assets.find((a) => (a.name ?? '').toLowerCase().endsWith('.exe'));
-  const downloadUrl = exeAsset?.browser_download_url?.trim();
+  const genericAsset = assets.find((a) => /\.(exe|msi|zip|dmg|tar\.gz|appimage)$/i.test((a.name ?? '').toLowerCase()));
+  const downloadUrl = (exeAsset ?? genericAsset)?.browser_download_url?.trim();
+  const releaseUrl = (release.html_url ?? '').trim();
 
   return {
     version,
     notesLines: parseReleaseNotes(release.body),
+    releaseUrl: releaseUrl || undefined,
     windows: downloadUrl ? { portableExe: { url: downloadUrl } } : undefined,
   };
 }

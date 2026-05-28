@@ -2,6 +2,7 @@ export type UpdateManifest = {
   version: string;
   notes?: string;
   notesLines?: string[];
+  releaseUrl?: string;
   windows?: {
     portableExe?: { url: string; sha256?: string };
   };
