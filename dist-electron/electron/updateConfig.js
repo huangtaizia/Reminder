@@ -10,4 +10,4 @@ exports.BUILTIN_UPDATE_MANIFEST_URL = '';
  * GitHub repository in `owner/repo` format used for release updates.
  * Override on CI/build via `REMINDER_GITHUB_REPO` when needed.
  */
-exports.BUILTIN_GITHUB_REPO = 'hoanghv13/reminder';
+exports.BUILTIN_GITHUB_REPO = 'huangtaizia/Reminder';
